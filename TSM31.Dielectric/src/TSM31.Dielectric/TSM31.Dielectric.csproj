@@ -13,12 +13,13 @@
   <ItemGroup>
     <!-- UI Components -->
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.10" />
-    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components" Version="4.10.2" />
+    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components" Version="4.13.1" />
+    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components.Icons" Version="4.13.1" />
     <PackageReference Include="Tailwind.Extensions.AspNetCore" Version="1.1.2" />
 
     <!-- Database / Persistence -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.1" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.10" />
     <PackageReference Include="RadUtils.SQLServer" Version="1.0.3" />
 
     <!-- Logging -->

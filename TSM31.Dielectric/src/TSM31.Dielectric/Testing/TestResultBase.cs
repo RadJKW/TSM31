@@ -34,7 +34,7 @@ public abstract class TestResultBase
     /// <summary>
     /// Test status (Passed, Failed, Aborted, etc.)
     /// </summary>
-    public TestStatus Status { get; set; } = TestStatus.NotStarted;
+    public TestResultStatus Status { get; set; } = TestResultStatus.NotStarted;
 
     /// <summary>
     /// Optional notes or remarks about the test
@@ -43,9 +43,9 @@ public abstract class TestResultBase
 }
 
 /// <summary>
-/// Standard test status values
+/// Standard test status values for test results
 /// </summary>
-public enum TestStatus
+public enum TestResultStatus
 {
     NotStarted,
     InProgress,

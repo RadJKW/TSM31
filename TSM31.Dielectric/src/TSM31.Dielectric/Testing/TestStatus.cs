@@ -3,12 +3,13 @@ namespace TSM31.Dielectric.Testing;
 /// <summary>
 /// Represents the status of a test result.
 /// </summary>
-[Serializable]
 public class TestStatus
 {
     public TestStatusType Status { get; set; } = TestStatusType.NotRequired;
 
-    public TestStatus() { }
+    public TestStatus()
+    {
+    }
 
     public TestStatus(TestStatusType initialStatus)
     {

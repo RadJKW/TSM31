@@ -1,8 +1,9 @@
+using TSM31.Dielectric.Common;
+using TSM31.Dielectric.Testing;
+
 namespace TSM31.Dielectric.WinForm;
 
 using Microsoft.Extensions.DependencyInjection;
-using Shared;
-using Shared.Abstractions;
 
 public static partial class Program
 {
@@ -13,7 +14,7 @@ public static partial class Program
         services.AddTestStationServices();
 
         // Add test station manager implementation
-        services.AddScoped<ITestManager, App.TestManager>();
+        services.AddScoped<ITestManager, TestManager>();
 
         // Add Windows Forms specific services
         services.AddWindowsFormsBlazorWebView();

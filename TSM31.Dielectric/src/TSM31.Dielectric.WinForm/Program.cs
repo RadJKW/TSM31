@@ -1,13 +1,14 @@
+using TSM31.Dielectric.Common;
+using TSM31.Dielectric.UI;
+
 namespace TSM31.Dielectric.WinForm;
 
 using Microsoft.AspNetCore.Components.WebView.WindowsForms;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using App;
-using TSM31.Dielectric.App.Console;
-using Shared.Configuration;
-using Shared;
+using Console;
+using Configuration;
 using Serilog;
 using Serilog.Events;
 
@@ -255,10 +256,7 @@ public static partial class Program
 
             Log.Debug("BlazorWebView added to form");
 
-            form.Shown += (_, _) =>
-            {
-                Log.Information("Main form shown to user");
-            };
+            form.Shown += (_, _) => { Log.Information("Main form shown to user"); };
 
             // ═══════════════════════════════════════════════════════════
             // PHASE 9: Register Shutdown Handler
@@ -327,6 +325,7 @@ public static partial class Program
                 Log.Warning("Blazor.start() returned null after {Attempts} attempts", attempts);
                 break;
             }
+
             await Task.Yield();
         }
 
