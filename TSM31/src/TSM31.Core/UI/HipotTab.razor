@@ -1,0 +1,138 @@
+@using Microsoft.FluentUI.AspNetCore.Components.Icons.Regular
+
+
+<div class="flex flex-col p-4 gap-3 overflow-auto h-full">
+  <!-- Hipot Test Data Section -->
+    <FluentLabel Typo="Typography.Subject" Class="font-semibold">Hipot Data</FluentLabel>
+
+    <!-- Test Parameters -->
+    <div class="flex flex-col border border-neutral-stroke-rest rounded p-3 bg-neutral-layer-2">
+        <FluentLabel Typo="Typography.Body" Class="font-semibold mb-2">Test Parameters</FluentLabel>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <FluentNumberField Label="Test Number" Value="1" Class="w-full" />
+            <FluentNumberField Label="Set Cond. (KV)" Value="0" Step="0.001" Class="w-full" />
+            <FluentTextField Label="V Range" Class="w-full" />
+            <FluentTextField Label="C Range" Class="w-full" />
+            <FluentNumberField Label="Watt Limit" Value="0" Class="w-full" />
+        </div>
+    </div>
+
+    <!-- Meter Data -->
+    <div class="flex flex-col border border-neutral-stroke-rest rounded p-3 bg-neutral-layer-1">
+        <FluentLabel Typo="Typography.Body" Class="font-semibold mb-3">Meter Data</FluentLabel>
+
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-8 justify-items-center">
+            <!-- Primary Voltage/Current -->
+            <div class="flex flex-col items-center">
+                <FluentLabel Typo="Typography.Body" Class="font-semibold">Primary Voltage</FluentLabel>
+                <FluentLabel Typo="Typography.PageTitle" Class="text-5xl" style="color: var(--accent-fill-rest);">000.000 <span
+                        class="text-2xl">KV</span></FluentLabel>
+            </div>
+
+            <div class="flex flex-col items-center">
+                <FluentLabel Typo="Typography.Body" Class="font-semibold">Primary Current</FluentLabel>
+                <FluentLabel Typo="Typography.PageTitle" Class="text-5xl" style="color: var(--accent-fill-rest);">000.000 <span
+                        class="text-2xl">mA</span></FluentLabel>
+            </div>
+
+            <!-- Secondary Voltage/Current -->
+            <div class="flex flex-col items-center">
+                <FluentLabel Typo="Typography.Body" Class="font-semibold">Secondary Voltage</FluentLabel>
+                <FluentLabel Typo="Typography.PageTitle" Class="text-5xl" style="color: var(--accent-fill-rest);">000.000 <span
+                        class="text-2xl">KV</span></FluentLabel>
+            </div>
+
+            <div class="flex flex-col items-center">
+                <FluentLabel Typo="Typography.Body" Class="font-semibold">Secondary Current</FluentLabel>
+                <FluentLabel Typo="Typography.PageTitle" Class="text-5xl" style="color: var(--accent-fill-rest);">000.000 <span
+                        class="text-2xl">mA</span></FluentLabel>
+            </div>
+        </div>
+
+        <!-- Variac Control -->
+        <div class="flex flex-col mt-6 p-4 bg-neutral-layer-2 rounded">
+            <FluentLabel Typo="Typography.Body" Class="font-semibold text-center mb-3">Variac Control</FluentLabel>
+            <div class="flex flex-wrap gap-8 justify-center items-center">
+                <div class="flex flex-col gap-2">
+                    <FluentLabel Typo="Typography.Body">Coarse</FluentLabel>
+                    <FluentButton IconStart="@(new Size24.ArrowUp())"
+                        Appearance="Appearance.Accent"
+                        Class="py-6">Raise</FluentButton>
+                    <FluentButton IconStart="@(new Size24.ArrowDown())"
+                        Appearance="Appearance.Neutral"
+                        Class="py-6">Lower</FluentButton>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <FluentLabel Typo="Typography.Body">Fine</FluentLabel>
+                    <FluentButton IconStart="@(new Size24.ArrowUp())"
+                        Appearance="Appearance.Accent"
+                        Class="py-6">Page Up</FluentButton>
+                    <FluentButton IconStart="@(new Size24.ArrowDown())"
+                        Appearance="Appearance.Neutral"
+                        Class="py-6">Page Down</FluentButton>
+                </div>
+                <div class="flex flex-col gap-2 items-center">
+                    <FluentCheckbox Label="Raise" />
+                    <FluentCheckbox Label="FS" />
+                    <FluentCheckbox Label="Zero" />
+                    <FluentCheckbox Label="Lower" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recorded Data Table -->
+    <div class="flex flex-col border border-neutral-stroke-rest rounded p-3 bg-neutral-layer-2">
+        <FluentLabel Typo="Typography.Body" Class="font-semibold mb-2">Recorded Data</FluentLabel>
+        <FluentDataGrid Items="@_hipotTests.AsQueryable()"
+            Class="overflow-auto max-h-48"
+            TGridItem="HipotTestData">
+            <PropertyColumn Property="@(t => t.TestNumber)" Title="Test" />
+            <PropertyColumn Property="@(t => t.PrimarySetVoltage)" Title="Pri Volt" Format="0.000" />
+            <PropertyColumn Property="@(t => t.PrimaryCurrentLimit)" Title="Pri Cur Lim" Format="0.000" />
+            <PropertyColumn Property="@(t => t.PrimaryTime)" Title="Pri Time" />
+            <PropertyColumn Property="@(t => t.Status)" Title="Status" />
+            <PropertyColumn Property="@(t => t.SecondarySetVoltage)" Title="Sec Volt" Format="0.000" />
+            <PropertyColumn Property="@(t => t.SecondaryCurrentLimit)" Title="Sec Cur" Format="0.000" />
+            <PropertyColumn Property="@(t => t.SecondaryTime)" Title="Sec Time" />
+            <PropertyColumn Property="@(t => t.Status)" Title="Status" />
+        </FluentDataGrid>
+    </div>
+
+    <!-- Primary/Secondary Timer Display -->
+    <div class="flex flex-col sm:flex-row gap-8 justify-center mt-4">
+        <div class="flex flex-col items-center">
+            <FluentLabel Typo="Typography.Body">Primary Timer</FluentLabel>
+            <FluentLabel Typo="Typography.PageTitle"
+                Class="text-7xl" style="color: var(--accent-fill-rest);">0</FluentLabel>
+            <FluentLabel Typo="Typography.Body">Seconds</FluentLabel>
+        </div>
+        <div class="flex flex-col items-center">
+            <FluentLabel Typo="Typography.Body">Secondary Timer</FluentLabel>
+            <FluentLabel Typo="Typography.PageTitle"
+                Class="text-7xl" style="color: var(--accent-fill-rest);">0</FluentLabel>
+            <FluentLabel Typo="Typography.Body">Seconds</FluentLabel>
+        </div>
+    </div>
+
+</div>
+
+@code {
+    private readonly List<HipotTestData> _hipotTests =
+    [
+        new()
+        {
+            TestNumber = 1,
+            PrimarySetVoltage = 0,
+            PrimaryCurrentLimit = 0,
+            PrimaryTime = 0,
+            Status = "Not Required",
+            SecondarySetVoltage = 10.1m,
+            SecondaryCurrentLimit = 45.1m,
+            SecondaryTime = 60
+        }
+    ];
+
+
+
+}

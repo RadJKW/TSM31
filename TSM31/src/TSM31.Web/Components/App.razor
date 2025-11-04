@@ -1,0 +1,28 @@
+﻿<!DOCTYPE html>
+@* ReSharper disable Html.PathError *@
+<html lang="en">
+
+<head>
+    <title>TSM31</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <base href="/"/>
+    <link rel="stylesheet" href="@Assets["_content/Microsoft.FluentUI.AspNetCore.Components/css/reboot.css"]"/>
+    <link rel="stylesheet" href="@Assets["TSM31.web.styles.css"]"/>
+    <link rel="stylesheet" href="@Assets["_content/TSM31.Core/app.css"]"/>
+    <link rel="icon" type="image/x-icon" href="_content/TSM31.Core/favicon.ico"/>
+    <link rel="stylesheet" href="_content/TSM31.Core/LargePole.jpg"/>
+    <HeadOutlet @rendermode="InteractiveServer"/>
+</head>
+
+<body>
+<!-- Set the default theme -->
+<script src="_content/Microsoft.FluentUI.AspNetCore.Components/js/loading-theme.js" type="text/javascript"></script>
+<loading-theme storage-name="theme" mode="dark" primary-color="default"></loading-theme>
+<fluent-design-theme mode="dark" primary-color="default"/>
+<Routes @rendermode="InteractiveServer"/>
+<script src="_content/TSM31.Core/keyboard-handler.js"></script>
+<script src="_framework/blazor.web.js"></script>
+</body>
+
+</html>

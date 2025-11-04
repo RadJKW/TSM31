@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(nul)",
+      "Bash(for dir in App/Console App/DataEntry App/Layout App/Navigation App/Operator App/Pages App/Persistence App/Startup App/Telemetry App/Testing)",
+      "Bash(do echo \"=== $dir ===\")",
+      "Bash(ls:*)",
+      "Bash(done)",
+      "Bash(for dir in Shared/Abstractions Shared/Components Shared/Configuration Shared/Database Shared/Models)",
+      "Bash(for dir in Testing Operator Console Configuration Navigation DataManagement UI Common)",
+      "Bash(do echo -n '$dir: ')",
+      "Bash(find:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

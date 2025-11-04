@@ -1,0 +1,150 @@
+@using TSM31.Core.Services.Persistence
+
+<FluentDialog @bind-Hidden="@_dialogHidden" Modal="true" TrapFocus="true" Style="width: 600px;" @onkeydown="HandleKeyDown">
+    <FluentStack Orientation="Orientation.Vertical" Style="padding: 24px; gap: 16px;">
+        <FluentLabel Typo="Typography.Subject" Style="text-align: center; font-weight: 600; color: var(--accent-fill-rest);">
+            🔄 Previous Session Found
+        </FluentLabel>
+
+        <FluentStack Orientation="Orientation.Vertical" Style="gap: 12px; padding: 16px; background: var(--neutral-layer-2); border-radius: 4px;">
+            @if (_sessionState != null)
+            {
+                <!-- Operator Information -->
+                @if (_sessionState.Operator != null)
+                {
+                    <FluentStack Orientation="Orientation.Vertical" Style="gap: 8px;">
+                        <FluentLabel Typo="Typography.Body" Style="font-weight: 600;">
+                            Operator:
+                        </FluentLabel>
+                        <FluentStack Orientation="Orientation.Horizontal" Style="gap: 8px; align-items: center; padding-left: 16px;">
+                            <FluentLabel Typo="Typography.Body">
+                                @_sessionState.Operator.Name (@_sessionState.Operator.Id)
+                            </FluentLabel>
+                        </FluentStack>
+                    </FluentStack>
+                }
+
+                <!-- Unit Data Information -->
+                @if (_sessionState.UnitData != null)
+                {
+                    <FluentStack Orientation="Orientation.Vertical" Style="gap: 8px; margin-top: 12px;">
+                        <FluentLabel Typo="Typography.Body" Style="font-weight: 600;">
+                            Unit Data:
+                        </FluentLabel>
+                        <FluentStack Orientation="Orientation.Horizontal" Style="gap: 8px; align-items: center; padding-left: 16px;">
+                            <FluentLabel Typo="Typography.Body">
+                                Serial: @_sessionState.UnitData.SerialNumber
+                            </FluentLabel>
+                        </FluentStack>
+                        <FluentStack Orientation="Orientation.Horizontal" Style="gap: 8px; align-items: center; padding-left: 16px;">
+                            <FluentLabel Typo="Typography.Body">
+                                Catalog: @_sessionState.UnitData.CatalogNumber
+                            </FluentLabel>
+                        </FluentStack>
+                    </FluentStack>
+                }
+
+                <!-- Session Timestamp -->
+                <FluentStack Orientation="Orientation.Horizontal" Style="gap: 8px; margin-top: 12px; padding: 8px; background: var(--neutral-layer-3); border-radius: 4px;">
+                    <FluentLabel Typo="Typography.Body" Style="color: var(--neutral-foreground-rest); opacity: 0.8; font-size: 0.875rem;">
+                        Last active: @FormatTimeAgo(_sessionState.UpdatedAt)
+                    </FluentLabel>
+                </FluentStack>
+            }
+            else
+            {
+                <FluentLabel Typo="Typography.Body" Style="text-align: center;">
+                    Loading session data...
+                </FluentLabel>
+            }
+        </FluentStack>
+
+        <!-- Action Buttons -->
+        <FluentStack Orientation="Orientation.Horizontal" Style="justify-content: center; gap: 12px; margin-top: 16px;">
+            <FluentButton Appearance="Appearance.Accent" OnClick="HandleRestore" Style="min-width: 140px;">
+                Restore Session (Y)
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Neutral" OnClick="HandleStartFresh" Style="min-width: 140px;">
+                Start Fresh (N)
+            </FluentButton>
+        </FluentStack>
+
+        <FluentLabel Typo="Typography.Body" Style="text-align: center; color: var(--neutral-foreground-rest); opacity: 0.7; margin-top: 8px; font-size: 0.875rem;">
+            Note: Unit data will be restored automatically. This prompt is only for operator login.
+        </FluentLabel>
+    </FluentStack>
+</FluentDialog>
+
+@code {
+    private bool _dialogHidden = true;
+    private SessionState? _sessionState;
+
+    [Parameter]
+    public EventCallback<bool> OnChoice { get; set; }
+
+    /// <summary>
+    /// Shows the dialog with session state information.
+    /// </summary>
+    /// <param name="sessionState">The session state to display</param>
+    public void Show(SessionState? sessionState)
+    {
+        _sessionState = sessionState;
+        _dialogHidden = false;
+        StateHasChanged();
+    }
+
+    public void Hide()
+    {
+        _dialogHidden = true;
+        StateHasChanged();
+    }
+
+    private async Task HandleRestore()
+    {
+        _dialogHidden = true;
+        await OnChoice.InvokeAsync(true); // true = restore
+        StateHasChanged();
+    }
+
+    private async Task HandleStartFresh()
+    {
+        _dialogHidden = true;
+        await OnChoice.InvokeAsync(false); // false = start fresh
+        StateHasChanged();
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (_dialogHidden) return;
+
+        var key = e.Key.ToUpperInvariant();
+
+        switch (key)
+        {
+            case "Y":
+                await HandleRestore();
+                break;
+            case "N":
+            case "ESCAPE":
+            case "ESC":
+                await HandleStartFresh();
+                break;
+        }
+    }
+
+    private string FormatTimeAgo(DateTime timestamp)
+    {
+        var timeSpan = DateTime.UtcNow - timestamp;
+
+        if (timeSpan.TotalMinutes < 1)
+            return "just now";
+        if (timeSpan.TotalMinutes < 60)
+            return $"{(int)timeSpan.TotalMinutes} minute{((int)timeSpan.TotalMinutes != 1 ? "s" : "")} ago";
+        if (timeSpan.TotalHours < 24)
+            return $"{(int)timeSpan.TotalHours} hour{((int)timeSpan.TotalHours != 1 ? "s" : "")} ago";
+        if (timeSpan.TotalDays < 7)
+            return $"{(int)timeSpan.TotalDays} day{((int)timeSpan.TotalDays != 1 ? "s" : "")} ago";
+
+        return timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+    }
+}

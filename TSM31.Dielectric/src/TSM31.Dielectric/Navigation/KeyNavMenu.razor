@@ -1,0 +1,45 @@
+@inject FunctionKeyService KeyService
+@inject ITestManager TestManager
+@implements IDisposable
+
+<div class="p-2 flex flex-col gap-1 min-h-full h-full shrink-0 min-w-[210px]">
+    <FluentLabel Typo="Typography.Subject"
+                 Class="font-semibold py-2 text-center border-b border-neutral-stroke-divider-rest">
+        Menu
+    </FluentLabel>
+
+    @foreach (var key in KeyService.FunctionKeys)
+    {
+        <KeyNavButton KeyText="@key.Key"
+                    Label="@key.Label"
+                    IsDisabled="@(!key.IsEnabled)"
+                    OnClick="@(() => KeyService.InvokeKey(key.Key))"/>
+    }
+
+    <div class="flex-grow"></div>
+
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        TestManager.OnTestActionChanged += HandleContextChanged;
+        KeyService.OnFunctionKeyPressed += HandleKeyPressed;
+    }
+
+    private void HandleContextChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void HandleKeyPressed(string keyText)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        TestManager.OnTestActionChanged -= HandleContextChanged;
+        KeyService.OnFunctionKeyPressed -= HandleKeyPressed;
+    }
+}

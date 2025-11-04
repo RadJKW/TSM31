@@ -1,0 +1,102 @@
+@inject MessageConsoleService MessageConsole
+
+<style>
+    .restore-dialog::part(overlay) {
+        background: rgba(0, 0, 0, 0.6);
+    }
+</style>
+
+<FluentDialog @bind-Hidden="@_dialogHidden" Modal="true" TrapFocus="true" Class="restore-dialog" Style="min-width: 500px;" @onkeydown="@HandleKeyDown">
+    <div class="flex flex-col gap-4 p-6">
+        <!-- Header -->
+        <div class="flex flex-col items-center gap-2">
+            <FluentLabel Typo="Typography.PageTitle" Style="color: var(--accent-fill-rest);">
+                Restore Session
+            </FluentLabel>
+            <FluentLabel Typo="Typography.Body" Alignment="HorizontalAlignment.Center">
+                A previous application session was found
+            </FluentLabel>
+        </div>
+
+        <!-- Operator Info -->
+        @if (_savedSession != null)
+        {
+            <div class="flex flex-col gap-2 p-4 bg-neutral-layer-2 rounded border border-neutral-stroke-rest">
+                <FluentLabel Typo="Typography.H5" Style="font-weight: 600;">
+                    Operator: @_savedSession.OperatorName
+                </FluentLabel>
+                <FluentLabel Typo="Typography.Body" Style="opacity: 0.8;">
+                    ID: @_savedSession.OperatorId
+                </FluentLabel>
+                @if (!string.IsNullOrEmpty(_savedSession.CurrentSerialNumber))
+                {
+                    <FluentLabel Typo="Typography.Body" Style="opacity: 0.8;">
+                        Last Unit: @_savedSession.CurrentSerialNumber
+                    </FluentLabel>
+                }
+                <FluentLabel Typo="Typography.Body" Style="opacity: 0.6; font-size: 12px;">
+                    Last Active: @_savedSession.LastUpdated.ToString("MMM dd, yyyy h:mm tt")
+                </FluentLabel>
+            </div>
+        }
+
+        <!-- Question -->
+        <FluentLabel Typo="Typography.Body" Alignment="HorizontalAlignment.Center" Style="font-weight: 600;">
+            Would you like to restore this session?
+        </FluentLabel>
+
+        <!-- Action Buttons -->
+        <FluentStack Orientation="Orientation.Horizontal" Style="gap: 12px; width: 100%;">
+            <FluentButton Appearance="Appearance.Accent"
+                          @onclick="@(() => HandleChoice(true))"
+                          Autofocus="true"
+                          Style="flex: 1;">
+                Yes, Restore
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Neutral"
+                          @onclick="@(() => HandleChoice(false))"
+                          Style="flex: 1;">
+                No, Start Fresh
+            </FluentButton>
+        </FluentStack>
+
+        <!-- Footer Note -->
+        <FluentLabel Typo="Typography.Body" Alignment="HorizontalAlignment.Center" Style="opacity: 0.7; font-size: 12px;">
+            Press ESC for fresh start
+        </FluentLabel>
+    </div>
+</FluentDialog>
+
+@code {
+    private bool _dialogHidden = true;
+    private SessionState? _savedSession;
+
+    [Parameter]
+    public EventCallback<bool> OnChoice { get; set; }
+
+    public void Show(SessionState session)
+    {
+        _savedSession = session;
+        _dialogHidden = false;
+        MessageConsole.AddInfo($"Session restore dialog shown for operator: {session.OperatorName}", "RestoreDialog");
+        StateHasChanged();
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await HandleChoice(false);
+        }
+    }
+
+    private async Task HandleChoice(bool restore)
+    {
+        MessageConsole.AddInfo($"User chose: {(restore ? "Restore" : "Start Fresh")}", "RestoreDialog");
+        _dialogHidden = true;
+        StateHasChanged();
+
+        // Notify parent of choice
+        await OnChoice.InvokeAsync(restore);
+    }
+}

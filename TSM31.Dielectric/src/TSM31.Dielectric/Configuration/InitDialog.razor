@@ -1,0 +1,72 @@
+@inject MessageConsoleService MessageConsole
+
+<style>
+    .splash-dialog::part(overlay) {
+        background: rgba(0, 0, 0, 0.85);
+    }
+</style>
+
+<FluentDialog @bind-Hidden="@_dialogHidden" Modal="true" TrapFocus="false" Class="splash-dialog" Style="min-width: 600px;">
+    <div class="flex flex-col items-center gap-6 p-8">
+        <!-- Logo/Title -->
+        <FluentLabel Typo="Typography.PageTitle" Style="color: var(--accent-fill-rest); font-size: 48px; font-weight: bold;">
+            Test Station
+        </FluentLabel>
+
+        <!-- Loading Indicator -->
+        <FluentProgressRing Width="64px" Height="64px"/>
+
+        <!-- Status Message -->
+        <FluentLabel Typo="Typography.H4" Alignment="HorizontalAlignment.Center">
+            @_statusMessage
+        </FluentLabel>
+
+        <!-- Version Info -->
+        <FluentLabel Typo="Typography.Body" Style="opacity: 0.7;">
+            Version 1.0.0
+        </FluentLabel>
+    </div>
+</FluentDialog>
+
+@code {
+    private bool _dialogHidden = true;
+    private string _statusMessage = "Initializing...";
+    public Action? OnSplashClosed;
+
+    public void Show()
+    {
+        _dialogHidden = false;
+        _statusMessage = "Initializing...";
+        MessageConsole.AddInfo("Splash screen displayed", "SplashScreen");
+        StateHasChanged();
+
+        // Auto-close after initialization sequence
+        _ = AutoCloseAsync();
+    }
+
+    private async Task AutoCloseAsync()
+    {
+        // Simulate initialization steps
+        await Task.Delay(500);
+        _statusMessage = "Loading services...";
+        StateHasChanged();
+
+        await Task.Delay(500);
+        _statusMessage = "Connecting to database...";
+        StateHasChanged();
+
+        await Task.Delay(500);
+        _statusMessage = "Ready!";
+        StateHasChanged();
+
+        await Task.Delay(300);
+
+        // Close splash
+        _dialogHidden = true;
+        MessageConsole.AddInfo("Splash screen closed", "SplashScreen");
+        StateHasChanged();
+
+        // Notify parent that splash is closed
+        OnSplashClosed?.Invoke();
+    }
+}

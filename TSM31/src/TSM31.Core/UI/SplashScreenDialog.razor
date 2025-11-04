@@ -1,0 +1,176 @@
+@inject InitializationStateService InitStateService
+@* ReSharper disable once Html.PathError *@
+
+
+<style>
+    .splash-screen::part(overlay) {
+        background : rgba(0, 0, 0, 0.6);
+    }
+</style>
+
+<FluentDialog @bind-Hidden="@_dialogHidden" Modal="true" TrapFocus="true" Class="splash-screen min-w-[720px] p-0 m-0">
+    <div class="flex flex-col">
+        <!-- Header Section - Centered with left-aligned text -->
+        <div class="flex flex-col items-center gap-1 pb-4">
+
+            <FluentLabel Typo="Typography.PageTitle" Style="color: var(--accent-fill-rest); font-style: italic;">
+                Large Pole Dielectric
+            </FluentLabel>
+
+            <FluentLabel Typo="Typography.Subject" Style="font-weight: 600;">
+                Console
+            </FluentLabel>
+
+            <FluentLabel Typo="Typography.Body">
+                Version 00.00.00
+            </FluentLabel>
+        </div>
+
+        <!-- Body Section - Split with image background on left -->
+        <div class="grid grid-cols-3 gap-0 border-2 border-accent-fill-rest" style="min-height: 360px;">
+
+            <!-- Left Column - Image/Loading Background -->
+            <div class="relative flex items-center justify-center border-r-2 border-accent-fill-rest"
+                 style="background-image: @(_isInitialized ? "url('_content/TSM31.Core/LargePole.jpg')" : "none");
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;">
+                @if (!_isInitialized)
+                {
+                    <!-- Dark overlay for better spinner visibility -->
+                    <div class="absolute inset-0 bg-black bg-opacity-50"></div>
+                    <FluentProgressRing Width="80px" class="relative z-10"/>
+                }
+            </div>
+
+            <!-- Right Column - Initialization Status -->
+            <div class="col-span-2 p-4 flex flex-col justify-center">
+                <FluentStack Orientation="Orientation.Vertical" Style="gap: 8px; width: 100%;">
+                    <FluentLabel Typo="Typography.Body" Style="font-weight: 600;">@_currentStatus</FluentLabel>
+
+                    <FluentStack Orientation="Orientation.Horizontal"
+                                 Style="justify-content: space-between; padding: 4px 0;">
+                        <FluentLabel Typo="Typography.Body">Message</FluentLabel>
+                        <FluentLabel Typo="Typography.Body">Status</FluentLabel>
+                    </FluentStack>
+
+                    <FluentDivider Orientation="Orientation.Horizontal"/>
+
+                    @foreach (var item in _initializationItems)
+                    {
+                        <FluentStack Orientation="Orientation.Horizontal"
+                                     Style="justify-content: space-between; padding: 2px 0;">
+                            <FluentLabel Typo="Typography.Body">@item.Message</FluentLabel>
+                            <FluentLabel Typo="Typography.Body"
+                                         Style="@GetStatusColor(item.Status)">
+                                @item.Status
+                            </FluentLabel>
+                        </FluentStack>
+                    }
+                </FluentStack>
+            </div>
+        </div>
+
+        <!-- Footer Section - System Ready and Continue Button -->
+        <div class="flex flex-col items-center gap-2 py-4 px-4">
+            @if (_isInitialized)
+            {
+                <FluentLabel Typo="Typography.Subject" Style="color: var(--accent-fill-rest);">
+                    System Ready
+                </FluentLabel>
+
+                <FluentButton Appearance="Appearance.Accent" OnClick="Close">
+                    Continue
+                </FluentButton>
+            }
+            else
+            {
+                <!-- Spacer to maintain footer height during initialization -->
+                <div style="height: 60px;"></div>
+            }
+        </div>
+    </div>
+</FluentDialog>
+
+@code {
+    private bool _dialogHidden = true;
+    private bool _isInitialized;
+    private string _currentStatus = "Initializing Test Station...";
+    private List<InitializationItem> _initializationItems = [];
+
+    public event Action? OnSplashClosed;
+
+    private class InitializationItem
+    {
+        public string Message { get; init; } = string.Empty;
+        public string Status { get; set; } = "Pending";
+    }
+
+    protected override async Task OnInitializedAsync()
+
+    {
+        _initializationItems = [
+            new InitializationItem { Message = "Checking I/O Control Panel", Status = "Pending" },
+            new InitializationItem { Message = "Initializing Power Generator", Status = "Pending" },
+            new InitializationItem { Message = "Connecting to Meter", Status = "Pending" },
+            new InitializationItem { Message = "Verifying Safety Systems", Status = "Pending" },
+            new InitializationItem { Message = "Loading Test Configurations", Status = "Pending" }
+        ];
+        // set the initialized to false so splash shows on first load
+        // await InitStateService.ClearInitializationAsync();
+        await base.OnInitializedAsync();
+    }
+
+    public void Show()
+    {
+        _dialogHidden = false;
+        StateHasChanged();
+        _ = Task.Run(InitializeAsync);
+    }
+
+    private async Task InitializeAsync()
+    {
+        await Task.Delay(500);
+
+        for (var i = 0; i < _initializationItems.Count; i++)
+        {
+            _currentStatus = $"Initializing... ({i + 1}/{_initializationItems.Count})";
+            _initializationItems[i].Status = "In Progress";
+            await InvokeAsync(StateHasChanged);
+
+            await Task.Delay(Random.Shared.Next(500, 1500));
+
+            // Simulate occasional warnings
+            _initializationItems[i].Status = Random.Shared.Next(0, 10) > 7 ? "Warning" : "OK";
+            await InvokeAsync(StateHasChanged);
+        }
+
+        _currentStatus = "Initialization Complete";
+        _isInitialized = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task Close()
+    {
+        _dialogHidden = true;
+        StateHasChanged();
+
+        // Mark as initialized so splash won't show on hot reloads or refreshes
+        await InitStateService.MarkAsInitializedAsync();
+
+        // Signal that splash screen has closed
+        OnSplashClosed?.Invoke();
+    }
+
+    private static string GetStatusColor(string status)
+    {
+        return status switch {
+            "OK" => "color: var(--success);",
+            "Warning" => "color: var(--warning);",
+            "Error" => "color: var(--error);",
+            "In Progress" => "color: var(--accent-fill-rest);",
+            _ => "color: var(--neutral-foreground-rest);"
+        };
+    }
+
+}

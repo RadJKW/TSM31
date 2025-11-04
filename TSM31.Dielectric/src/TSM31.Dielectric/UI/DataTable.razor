@@ -1,0 +1,95 @@
+@using TSM31.Dielectric.Common
+@typeparam TItem
+
+<div class="table-container m-2">
+    <table class="w-full text-xs border-collapse! bg-neutral-layer-2 table-fixed! mb-0!">
+        <thead class="bg-neutral-layer-2">
+        <tr>
+            @foreach (var column in Columns)
+            {
+                <th class="px-0 py-1 font-semibold border! border-neutral-stroke-strong! text-center!">
+                    <span>@column.Header</span>
+                </th>
+            }
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var item in Items)
+        {
+            var rowClass = "text-center bg-neutral-layer-1";
+            if (RowCssClassSelector != null)
+            {
+                var customClass = RowCssClassSelector(item);
+                if (!string.IsNullOrEmpty(customClass))
+                {
+                    rowClass = $"text-center {customClass}";
+                }
+            }
+            <tr class="@rowClass">
+                @foreach (var column in Columns)
+                {
+                    <td class="px-2 py-1 border! border-neutral-stroke-strong! @column.CssClass">
+                        @if (column.CustomRender != null)
+                        {
+                            @column.CustomRender(item)
+                        }
+                        else
+                        {
+                            @FormatValue(column.ValueSelector(item), column.Format)
+                        }
+                    </td>
+                }
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>
+
+@code {
+
+    /// <summary>
+    /// The collection of items to display in the table
+    /// </summary>
+    [Parameter]
+    public IEnumerable<TItem> Items { get; set; } = [];
+
+    /// <summary>
+    /// Column definitions for the table
+    /// </summary>
+    [Parameter]
+    public List<TableColumnDefinition<TItem>> Columns { get; set; } = [];
+
+    /// <summary>
+    /// Optional function to determine custom CSS class for each row based on item properties
+    /// </summary>
+    [Parameter]
+    public Func<TItem, string?>? RowCssClassSelector { get; set; }
+
+    /// <summary>
+    /// Formats a value based on its type and optional format string
+    /// </summary>
+    private string FormatValue(object? value, string? format)
+    {
+        if (value == null)
+            return string.Empty;
+
+        // Handle decimal formatting
+        if (value is decimal decimalValue && !string.IsNullOrEmpty(format))
+            return decimalValue.ToString(format);
+
+        // Handle int formatting
+        if (value is int intValue && !string.IsNullOrEmpty(format))
+            return intValue.ToString(format);
+
+        // Handle double formatting
+        if (value is double doubleValue && !string.IsNullOrEmpty(format))
+            return doubleValue.ToString(format);
+
+        // Handle float formatting
+        if (value is float floatValue && !string.IsNullOrEmpty(format))
+            return floatValue.ToString(format);
+
+        // Default ToString for other types
+        return value.ToString() ?? string.Empty;
+    }
+}

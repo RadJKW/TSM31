@@ -1,0 +1,12 @@
+{
+  "scripts": {
+    "tailwind": "cross-env NODE_ENV=development npx tailwindcss -i ./Tailwind/tw-input.css -o ./wwwroot/tailwind.css --watch"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "^4.1.16"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0",
+    "tailwindcss": "^4.1.16"
+  }
+}

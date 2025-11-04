@@ -1,0 +1,112 @@
+@namespace TSM31.Core.UI
+@inject MessageConsoleService MessageConsole
+@inject IJSRuntime JsRuntime
+@implements IDisposable
+@implements IAsyncDisposable
+
+<div class="messages-console flex flex-col w-full h-[200px] bg-black border-t border-neutral-stroke-divider-rest overflow-hidden">
+    <!-- Console Header -->
+    <div class="console-header flex flex-row justify-between items-center px-3 py-1 bg-neutral-layer-2 border-b border-neutral-stroke-divider-rest flex-shrink-0">
+        <FluentLabel Typo="Typography.Body" Class="font-semibold text-gray-400">Console Output</FluentLabel>
+        <div class="flex flex-row gap-2">
+            <FluentButton Appearance="Appearance.Stealth"
+                          Class="!text-xs !px-2 !py-1"
+                          TabIndex="-1"
+                          OnClick="@(() => MessageConsole.Clear())">
+                Clear
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Stealth"
+                          Class="!text-xs !px-2 !py-1"
+                          TabIndex="-1"
+                          OnClick="@(() => _autoScroll = !_autoScroll)">
+                @(_autoScroll ? "Auto" : "Manual")
+            </FluentButton>
+        </div>
+    </div>
+
+    <!-- Console Messages -->
+    <div @ref="_messagesContainer" class="console-messages flex-1 overflow-y-auto font-mono text-xs bg-black px-2 py-1 space-y-0" tabindex="-1">
+        @foreach (var msg in MessageConsole.Messages)
+        {
+            <div class="console-line @msg.GetCssClass() whitespace-pre-wrap break-words">@msg.FormattedMessage</div>
+        }
+    </div>
+</div>
+
+@code {
+    private bool _autoScroll = true;
+    private Action? _messagesChangedHandler;
+    private ElementReference _messagesContainer;
+    private IJSObjectReference? _jsModule;
+
+    protected override void OnInitialized()
+    {
+        _messagesChangedHandler = () => HandleMessagesChanged();
+        MessageConsole.OnMessagesChanged += _messagesChangedHandler;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                _jsModule = await JsRuntime.InvokeAsync<IJSObjectReference>("import", "./_content/TSM31.Core/js/consoleScroll.js");
+            }
+            catch (Exception ex)
+            {
+                await Console.Error.WriteLineAsync($"Failed to load console scroll module: {ex.Message}");
+            }
+        }
+    }
+
+    private void HandleMessagesChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+
+        if (_autoScroll)
+        {
+            _ = InvokeAsync(ScrollToBottom);
+        }
+    }
+
+    private async Task ScrollToBottom()
+    {
+        try
+        {
+            if (_jsModule != null)
+            {
+                await _jsModule.InvokeVoidAsync("scrollToBottom", _messagesContainer);
+            }
+        }
+        catch (Exception ex)
+        {
+            await Console.Error.WriteLineAsync($"Error scrolling console: {ex.Message}");
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_messagesChangedHandler != null)
+        {
+            MessageConsole.OnMessagesChanged -= _messagesChangedHandler;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_jsModule is not null)
+        {
+            try
+            {
+                await _jsModule.DisposeAsync();
+            }
+            catch
+            {
+                // Swallow disposal errors
+            }
+        }
+
+        Dispose();
+    }
+}

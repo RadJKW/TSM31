@@ -1,0 +1,122 @@
+﻿@using TSM31.Core.UI.Shared
+@inject DielectricTestManager TestManager
+
+<div id="transformer-data-bar" class="flex flex-col w-full justify-center gap-2">
+    <!-- Unit Data Bar (top summary) -->
+    <div id="unit-data-bar" class="grid grid-cols-[1fr_1.5fr_1fr_0.5fr_0.8fr_1.5fr] gap-x-4 px-2 py-2 bg-neutral-layer-1 border border-neutral-stroke-rest">
+        @{
+            var unit = TestManager.CurrentUnit;
+            var serial = unit?.SerialNumber ?? "0000000000";
+            var catalog = unit?.CatalogNumber ?? "0000000000000";
+            var unitType = unit?.UnitType.ToString() ?? "-";
+            var kva = (unit?.Kva ?? 000);
+            var workOrder = unit?.WorkOrder ?? "00000";
+            var customer = unit?.CustomerName ?? "Customer";
+        }
+        <FluentLabel Typo="Typography.H5" Class="mx-1 font-semibold whitespace-nowrap text-left flex items-center gap-1">
+            Serial Number:
+            <span class="flex-1 text-center px-2 py-0.5 bg-white/5 border border-white/20 rounded text-accent-fill-rest">@serial</span>
+        </FluentLabel>
+        <FluentLabel Typo="Typography.H5" Class="mx-1 font-semibold whitespace-nowrap text-left flex items-center gap-1">
+            Catalog Number:
+            <span class="flex-1 text-center px-2 py-0.5 bg-white/5 border border-white/20 rounded text-accent-fill-rest">@catalog</span>
+        </FluentLabel>
+        <FluentLabel Typo="Typography.H5" Class="mx-1 font-semibold whitespace-nowrap text-left flex items-center gap-1">
+            Unit Type:
+            <span class="flex-1 text-center px-2 py-0.5 bg-white/5 border border-white/20 rounded text-accent-fill-rest">@unitType</span>
+        </FluentLabel>
+        <FluentLabel Typo="Typography.H5" Class="mx-1 font-semibold whitespace-nowrap text-left flex items-center gap-1">
+            KVA:
+            <span class="flex-1 text-center px-2 py-0.5 bg-white/5 border border-white/20 rounded text-accent-fill-rest">@kva</span>
+        </FluentLabel>
+        <FluentLabel Typo="Typography.H5" Class="mx-1 font-semibold whitespace-nowrap text-left flex items-center gap-1">
+            Work Order:
+            <span class="flex-1 text-center px-2 py-0.5 bg-white/5 border border-white/20 rounded text-accent-fill-rest">@workOrder</span>
+        </FluentLabel>
+        <FluentLabel Typo="Typography.H5" Class="mx-1 font-semibold whitespace-nowrap text-left flex items-center gap-1">
+            Customer:
+            <span class="flex-1 text-center px-2 py-0.5 bg-white/5 border border-white/20 rounded text-accent-fill-rest">@customer</span>
+        </FluentLabel>
+    </div>
+
+    <!-- Transformer Configuration Table -->
+    <div class="flex flex-col bg-neutral-layer-1 border border-neutral-stroke-rest rounded overflow-hidden">
+        <div class="px-2 py-1">
+            <FluentLabel Typo="Typography.H5" Class="font-semibold w-full">
+                Transformer Data
+            </FluentLabel>
+        </div>
+        <DataTable TItem="TransformerRatingRow" Items="@GetTransformerRatingRows()" Columns="@_transformerColumns"/>
+
+    </div>
+</div>
+
+
+@code {
+
+    // Helper class to represent a single row of transformer rating data
+    private class TransformerRatingRow
+    {
+        public float PrimaryVolts { get; set; }
+        public int PrimaryRatings { get; set; }
+        public int PrimaryBushings { get; set; }
+        public int PrimaryBIL { get; set; }
+        public float SecondaryVolts { get; set; }
+        public int SecondaryRatings { get; set; }
+        public int SecondaryBushings { get; set; }
+        public int SecondaryBIL { get; set; }
+        public bool HasArrestor { get; set; }
+    }
+
+    private readonly List<TableColumnDefinition<TransformerRatingRow>> _transformerColumns = new() {
+        new() { Header = "Primary Volts", ValueSelector = x => x.PrimaryVolts },
+        new() { Header = "Ratings", ValueSelector = x => x.PrimaryRatings },
+        new() { Header = "Bushings", ValueSelector = x => x.PrimaryBushings },
+        new() { Header = "BIL", ValueSelector = x => x.PrimaryBIL, Format = "000" },
+        new() { Header = "Secondary Volts", ValueSelector = x => x.SecondaryVolts },
+        new() { Header = "Ratings", ValueSelector = x => x.SecondaryRatings },
+        new() { Header = "Bushings", ValueSelector = x => x.SecondaryBushings },
+        new() { Header = "BIL", ValueSelector = x => x.SecondaryBIL, Format = "000" },
+        new() {
+            Header = "Arrestor",
+            ValueSelector = x => x.HasArrestor,
+            CustomRender = item =>
+                @<FluentBadge Appearance="@(item.HasArrestor ? Appearance.Accent : Appearance.Neutral)"
+                              Class="!text-[10px] !px-2 !py-0.5">
+                    @(item.HasArrestor ? "Yes" : "No")
+                </FluentBadge>
+        }
+    };
+
+    protected override void OnInitialized()
+    {
+        TestManager.OnUnitDataChanged += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        TestManager.OnUnitDataChanged -= StateHasChanged;
+    }
+
+    private List<TransformerRatingRow> GetTransformerRatingRows()
+    {
+        var unit = TestManager.CurrentUnit;
+        var index = unit?.CurrentTest > 0 ? unit.CurrentTest - 1 : 0;
+        var ratings = unit != null && unit.Ratings.Count > index ? unit.Ratings[index] : null;
+
+        return new List<TransformerRatingRow> {
+            new() {
+                PrimaryVolts = ratings?.PrimaryVoltage ?? 0,
+                PrimaryRatings = unit?.PrimaryRatings ?? 0,
+                PrimaryBushings = unit?.PrimaryBushings ?? 0,
+                PrimaryBIL = ratings?.PrimaryBIL ?? 0,
+                SecondaryVolts = ratings?.SecondaryVoltage ?? 0,
+                SecondaryRatings = unit?.SecondaryRatings ?? 0,
+                SecondaryBushings = unit?.SecondaryBushings ?? 0,
+                SecondaryBIL = ratings?.SecondaryBIL ?? 0,
+                HasArrestor = unit?.HasArrestor ?? false
+            }
+        };
+    }
+
+}

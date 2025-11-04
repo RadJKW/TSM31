@@ -1,0 +1,117 @@
+@inject DielectricTestManager TestManager
+@implements IDisposable
+
+<div class="flex flex-col p-4 gap-3 overflow-auto">
+    <FluentLabel Typo="Typography.Subject" Class="font-semibold">Impulse Test Data</FluentLabel>
+
+    <!-- Generator Status Section -->
+    <div class="flex flex-col border border-neutral-stroke-rest rounded p-3 bg-neutral-layer-2">
+        <FluentLabel Typo="Typography.Body" Class="font-semibold mb-2">Generator Status</FluentLabel>
+        <div class="flex flex-wrap gap-4 items-center">
+            <FluentLabel Typo="Typography.Subject" Class="text-4xl">Charge Voltage: <span
+                    style="color: var(--accent-fill-rest);">00.000 KV</span></FluentLabel>
+            <FluentLabel>Charge Time: 0</FluentLabel>
+        </div>
+        <div class="flex flex-wrap gap-2 mt-2">
+            <FluentCheckbox Label="Charging Released" />
+            <FluentCheckbox Label="Safety Loop Closed" />
+            <FluentCheckbox Label="Ready Switch ON" />
+            <FluentCheckbox Label="Gap Closing" />
+            <FluentCheckbox Label="Operate Switch ON" />
+            <FluentCheckbox Label="Gap Opening" />
+            <FluentCheckbox Label="Grounded" />
+            <FluentCheckbox Label="Ungrounded" />
+        </div>
+    </div>
+
+    <!-- Test Results -->
+    <div class="flex flex-col border border-neutral-stroke-rest rounded p-3 bg-neutral-layer-1">
+        <FluentLabel Typo="Typography.Body" Class="font-semibold mb-2">Test Results</FluentLabel>
+        <FluentLabel>Measured Voltage: [Display Result]</FluentLabel>
+        <FluentLabel>Test Result Message: [Display Message]</FluentLabel>
+        <FluentLabel>Test Error Message: [Display Error]</FluentLabel>
+    </div>
+
+    <!-- Recorded Data -->
+    <div class="flex flex-col border border-neutral-stroke-rest rounded p-3 bg-neutral-layer-2">
+        <FluentLabel Typo="Typography.Body" Class="font-semibold mb-2">Recorded Data</FluentLabel>
+        <FluentDataGrid Items="@GetImpulseTests()" Class="max-h-52 overflow-auto" TGridItem="ImpulseTestData">
+            <PropertyColumn Property="@(t => t.TestNumber)" Title="Test" />
+            <PropertyColumn Property="@(t => t.H1Measured)" Title="H1 Measured" Format="0.00" />
+            <PropertyColumn Property="@(t => t.H1Status)" Title="H1 Status" />
+            <PropertyColumn Property="@(t => t.H2Measured)" Title="H2 Measured" Format="0.00" />
+            <PropertyColumn Property="@(t => t.H2Status)" Title="H2 Status" />
+            <PropertyColumn Property="@(t => t.X1Measured)" Title="X1 Measured" Format="0.00" />
+            <PropertyColumn Property="@(t => t.X1Status)" Title="X1 Status" />
+            <PropertyColumn Property="@(t => t.X2Measured)" Title="X2 Measured" Format="0.00" />
+            <PropertyColumn Property="@(t => t.X2Status)" Title="X2 Status" />
+        </FluentDataGrid>
+    </div>
+
+    <!-- Completed Tests Checkboxes -->
+    <div class="flex flex-col border border-neutral-stroke-rest rounded p-3 bg-neutral-layer-1">
+        <FluentLabel Typo="Typography.Body" Class="font-semibold mb-2">Completed Impulse Tests
+        </FluentLabel>
+        <div class="flex flex-wrap gap-4">
+            <FluentCheckbox Label="First Signature Shot" />
+            <FluentCheckbox Label="First Full Shot" />
+            <FluentCheckbox Label="Second Full Shot" />
+            <FluentCheckbox Label="Second Signature Shot" />
+        </div>
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        TestManager.OnUnitDataChanged += HandleUnitDataChanged;
+    }
+
+    private void HandleUnitDataChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private IQueryable<ImpulseTestData> GetImpulseTests()
+    {
+        var impulseData = TestManager.GetImpulseTestData();
+        if (impulseData == null || !impulseData.Any())
+        {
+            // Return empty placeholder if no data
+            return new List<ImpulseTestData>
+            {
+                new ImpulseTestData
+                {
+                    TestNumber = 1,
+                    H1Measured = 0,
+                    H1Status = "Not Required",
+                    H2Measured = 0,
+                    H2Status = "Not Required",
+                    X1Measured = 0,
+                    X1Status = "Not Required",
+                    X2Measured = 0,
+                    X2Status = "Not Required"
+                }
+            }.AsQueryable();
+        }
+
+        // Convert ImpulseData (from TestData.Models) to ImpulseTestData (UI model)
+        return impulseData.Select((data, index) => new ImpulseTestData
+        {
+            TestNumber = index + 1,
+            H1Measured = 0, // TODO: Map from actual test results when available
+            H1Status = data.H1Status.Status.ToString(),
+            H2Measured = 0,
+            H2Status = data.H2Status.Status.ToString(),
+            X1Measured = 0,
+            X1Status = data.X1Status.Status.ToString(),
+            X2Measured = 0,
+            X2Status = data.X2Status.Status.ToString()
+        }).AsQueryable();
+    }
+
+    public void Dispose()
+    {
+        TestManager.OnUnitDataChanged -= HandleUnitDataChanged;
+    }
+}

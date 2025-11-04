@@ -1,0 +1,47 @@
+<div class="menu-button flex flex-row items-center p-1 my-0.5 rounded @GetButtonClass()" @onclick="HandleClick">
+    <div class="p-2 text-center rounded-sm font-semibold text-md border border-neutral-stroke-rest min-w-[50px] @GetKeyClass()">
+        @KeyText
+    </div>
+    <FluentLabel Typo="Typography.Body" Class="flex-1 pl-4">
+        @Label
+    </FluentLabel>
+</div>
+
+@code {
+
+    [Parameter]
+    public string KeyText { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool IsDisabled { get; set; }
+
+    [Parameter]
+    public EventCallback OnClick { get; set; }
+
+
+    private async Task HandleClick()
+    {
+        if (!IsDisabled && OnClick.HasDelegate)
+        {
+            await OnClick.InvokeAsync(null);
+        }
+    }
+
+    private string GetButtonClass()
+    {
+        if (IsDisabled)
+        {
+            return "opacity-50 cursor-not-allowed";
+        }
+
+        return "bg-neutral-layer-3 text-neutral-foreground-rest hover:bg-neutral-layer-4 cursor-pointer";
+    }
+
+    private string GetKeyClass()
+    {
+        return "bg-neutral-fill-stealth-rest text-accent-fill-rest";
+    }
+}

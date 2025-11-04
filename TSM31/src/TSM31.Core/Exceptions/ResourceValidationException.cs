@@ -1,0 +1,44 @@
+﻿namespace TSM31.Core.Exceptions;
+
+using Microsoft.Extensions.Localization;
+using Resources;
+using System.Net;
+
+public class ResourceValidationException : RestException
+{
+    public ResourceValidationException(params LocalizedString[] errorMessages)
+        : this(("*", errorMessages))
+    {
+    }
+
+    public ResourceValidationException(params (string propName, LocalizedString[] errorMessages)[] details)
+        : this(new ErrorResourcePayload
+        {
+            Details = details.Select(propErrors => new PropertyErrorResourceCollection
+            {
+                Name = propErrors.propName,
+                Errors = propErrors.errorMessages.Select(e => new ErrorResource
+                {
+                    Key = e.Name,
+                    Message = e.Value
+                }).ToList()
+            }).ToList()
+        })
+    {
+    }
+
+    public ResourceValidationException(ErrorResourcePayload? payload)
+        : this(message: nameof(AppStrings.ResourceValidationException), payload)
+    {
+    }
+
+    public ResourceValidationException(string message, ErrorResourcePayload? payload)
+        : base(message)
+    {
+        Payload = payload ?? new();
+    }
+
+    public ErrorResourcePayload Payload { get; set; }
+
+    public override HttpStatusCode StatusCode => HttpStatusCode.BadRequest;
+}

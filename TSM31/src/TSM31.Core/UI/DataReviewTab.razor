@@ -1,0 +1,237 @@
+﻿@inject DielectricTestManager TestManager
+@using TSM31.Core.UI.Shared
+@implements IDisposable
+
+<div class="flex flex-col gap-3 overflow-auto h-full">
+
+    <!-- Hipot Data Table -->
+    <div class="flex flex-col bg-neutral-layer-1 border border-neutral-stroke-rest rounded overflow-hidden">
+        <div class="px-2 py-1">
+            <FluentLabel Typo="Typography.H5" Class="font-semibold">Hipot Data</FluentLabel>
+        </div>
+        <DataTable TItem="HipotTestData" Items="@GetHipotTests()" Columns="@_hipotColumns" RowCssClassSelector="@GetCurrentTestRowClass"/>
+    </div>
+
+    <!-- Impulse Data Table -->
+    <div class="flex flex-col bg-neutral-layer-1 border border-neutral-stroke-rest rounded overflow-hidden">
+        <div class="px-2 py-1">
+            <FluentLabel Typo="Typography.H5" Class="font-semibold">
+                Impulse Data
+            </FluentLabel>
+        </div>
+        <DataTable TItem="ImpulseTestData" Items="@GetImpulseTests()" Columns="@_impulseColumns" RowCssClassSelector="@GetCurrentTestRowClass"/>
+    </div>
+
+    <!-- Induced Data Table -->
+    <div class="flex flex-col bg-neutral-layer-1 border border-neutral-stroke-rest rounded overflow-hidden">
+        <div class="px-2 py-1">
+            <FluentLabel Typo="Typography.H5" Class="font-semibold">Induced Data</FluentLabel>
+        </div>
+        <DataTable TItem="InducedTestData" Items="@GetInducedTests()" Columns="@_inducedColumns" RowCssClassSelector="@GetCurrentTestRowClass"/>
+    </div>
+
+</div>
+
+@code {
+
+    private readonly List<TableColumnDefinition<HipotTestData>> _hipotColumns = [
+      new() { Header = "Test", ValueSelector = x => x.TestNumber },
+      new() { Header = "Pri Volt", ValueSelector = x => x.PrimarySetVoltage, Format = "0.000" },
+      new() { Header = "Pri Cur", ValueSelector = x => x.PrimaryCurrentLimit, Format = "0.000" },
+      new() { Header = "Pri Time", ValueSelector = x => x.PrimaryTime },
+      new() { Header = "Status", ValueSelector = x => x.Status },
+      new() { Header = "Sec Volt", ValueSelector = x => x.SecondarySetVoltage, Format = "0.000" },
+      new() { Header = "Sec Cur", ValueSelector = x => x.SecondaryCurrentLimit, Format = "0.000" },
+      new() { Header = "Sec Time", ValueSelector = x => x.SecondaryTime },
+      new() { Header = "Status", ValueSelector = x => x.Status },
+      new() { Header = "4LVB Volt", ValueSelector = x => x.FourLvbSetVoltage, Format = "0.000" },
+      new() { Header = "4LVB Cur", ValueSelector = x => x.FourLvbCurrentLimit, Format = "0.000" },
+      new() { Header = "4LVB Time", ValueSelector = x => x.FourLvbTime },
+      new() { Header = "Status", ValueSelector = x => x.Status }
+    ];
+
+    private readonly List<TableColumnDefinition<ImpulseTestData>> _impulseColumns = [
+      new() { Header = "Test", ValueSelector = x => x.TestNumber },
+      new() { Header = "H1 Measured", ValueSelector = x => x.H1Measured, Format = "0.00" },
+      new() { Header = "H1 Status", ValueSelector = x => x.H1Status },
+      new() { Header = "H2 Measured", ValueSelector = x => x.H2Measured, Format = "0.00" },
+      new() { Header = "H2 Status", ValueSelector = x => x.H2Status },
+      new() { Header = "H3 Measured", ValueSelector = x => x.H3Measured, Format = "0.00" },
+      new() { Header = "H3 Status", ValueSelector = x => x.H3Status },
+      new() { Header = "X1 Measured", ValueSelector = x => x.X1Measured, Format = "0.00" },
+      new() { Header = "X1 Status", ValueSelector = x => x.X1Status },
+      new() { Header = "X2 Measured", ValueSelector = x => x.X2Measured, Format = "0.00" },
+      new() { Header = "X2 Status", ValueSelector = x => x.X2Status }
+    ];
+
+    private readonly List<TableColumnDefinition<InducedTestData>> _inducedColumns = [
+      new() { Header = "Test", ValueSelector = x => x.TestNumber },
+      new() { Header = "1st Volts (avg)", ValueSelector = x => x.FirstVoltsAvg, Format = "0.00" },
+      new() { Header = "1st Amps (avg)", ValueSelector = x => x.FirstAmpsAvg, Format = "0.000" },
+      new() { Header = "1st Watts (avg)", ValueSelector = x => x.FirstWattsAvg, Format = "0.00" },
+      new() { Header = "1st Time", ValueSelector = x => x.FirstTime },
+      new() { Header = "1st Status", ValueSelector = x => x.FirstStatus },
+      new() { Header = "2nd Volts (avg)", ValueSelector = x => x.SecondVoltsAvg, Format = "0.00" },
+      new() { Header = "2nd Amps (avg)", ValueSelector = x => x.SecondAmpsAvg, Format = "0.000" },
+      new() { Header = "2nd Watts (avg)", ValueSelector = x => x.SecondWattsAvg, Format = "0.00" },
+      new() { Header = "2nd Time", ValueSelector = x => x.SecondTime },
+      new() { Header = "2nd Status", ValueSelector = x => x.SecondStatus }
+    ];
+
+    protected override void OnInitialized()
+    {
+        TestManager.OnUnitDataChanged += HandleUnitDataChanged;
+    }
+
+    private void HandleUnitDataChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Converts HipotData collection to UI HipotTestData models
+    /// </summary>
+    private List<HipotTestData> GetHipotTests()
+    {
+        var hipotData = TestManager.GetHipotTestData();
+        if (hipotData == null || !hipotData.Any())
+        {
+            // Return empty placeholder if no data
+            return [
+              new() {
+                TestNumber = 1,
+                PrimarySetVoltage = 0,
+                PrimaryCurrentLimit = 0,
+                PrimaryTime = 0,
+                SecondarySetVoltage = 0,
+                SecondaryCurrentLimit = 0,
+                SecondaryTime = 0,
+                FourLvbSetVoltage = 0,
+                FourLvbCurrentLimit = 0,
+                FourLvbTime = 0,
+                Status = "Not Required"
+              }
+            ];
+        }
+
+        // Convert HipotData to HipotTestData for UI display
+        return hipotData.Select((data, index) => new HipotTestData {
+                TestNumber = index + 1,
+                PrimarySetVoltage = (decimal)data.PrimarySetCondition,
+                PrimaryCurrentLimit = data.PrimaryLimit,
+                PrimaryTime = data.PrimaryTimeRequired,
+                SecondarySetVoltage = (decimal)data.SecondarySetCondition,
+                SecondaryCurrentLimit = data.SecondaryLimit,
+                SecondaryTime = data.SecondaryTimeRequired,
+                FourLvbSetVoltage = (decimal)data.FourLvbSetCondition,
+                FourLvbCurrentLimit = data.FourLvbLimit,
+                FourLvbTime = data.FourLvbTimeRequired,
+                Status = data.PrimaryStatus.Status.ToString()
+            })
+            .ToList();
+    }
+
+    /// <summary>
+    /// Converts ImpulseData collection to UI ImpulseTestData models
+    /// </summary>
+    private List<ImpulseTestData> GetImpulseTests()
+    {
+        var impulseData = TestManager.GetImpulseTestData();
+        if (impulseData == null || !impulseData.Any())
+        {
+            // Return empty placeholder if no data
+            return [
+              new() {
+                TestNumber = 1,
+                H1Measured = 0,
+                H1Status = "Not Required",
+                H2Measured = 0,
+                H2Status = "Not Required",
+                H3Measured = 0,
+                H3Status = "Not Required",
+                X1Measured = 0,
+                X1Status = "Not Required",
+                X2Measured = 0,
+                X2Status = "Not Required"
+              }
+            ];
+        }
+
+        // Convert ImpulseData to ImpulseTestData for UI display
+        return impulseData.Select((data, index) => new ImpulseTestData {
+                TestNumber = index + 1,
+                H1Measured = 0,// TODO: Map from actual test results when available
+                H1Status = data.H1Status.Status.ToString(),
+                H2Measured = 0,
+                H2Status = data.H2Status.Status.ToString(),
+                H3Measured = 0,
+                H3Status = data.H3Status.Status.ToString(),
+                X1Measured = 0,
+                X1Status = data.X1Status.Status.ToString(),
+                X2Measured = 0,
+                X2Status = data.X2Status.Status.ToString()
+            })
+            .ToList();
+    }
+
+    /// <summary>
+    /// Converts InducedData collection to UI InducedTestData models
+    /// </summary>
+    private List<InducedTestData> GetInducedTests()
+    {
+        var inducedData = TestManager.GetInducedTestData();
+        if (inducedData == null || !inducedData.Any())
+        {
+            // Return empty placeholder if no data
+            return [
+              new() {
+                TestNumber = 1,
+                FirstVoltsAvg = 0,
+                FirstAmpsAvg = 0,
+                FirstWattsAvg = 0,
+                FirstTime = 0,
+                FirstStatus = "Not Required",
+                SecondVoltsAvg = 0,
+                SecondAmpsAvg = 0,
+                SecondWattsAvg = 0,
+                SecondTime = 0,
+                SecondStatus = "Not Required"
+              }
+            ];
+        }
+
+        // Convert InducedData to InducedTestData for UI display
+        return inducedData.Select((data, index) => new InducedTestData {
+                TestNumber = index + 1,
+                FirstVoltsAvg = (decimal)data.FirstVoltage,
+                FirstAmpsAvg = (decimal)data.FirstCurrent,
+                FirstWattsAvg = (decimal)data.FirstPower,
+                FirstTime = data.FirstTestTime,
+                FirstStatus = data.FirstStatus.Status.ToString(),
+                SecondVoltsAvg = (decimal)data.SecondVoltage,
+                SecondAmpsAvg = (decimal)data.SecondCurrent,
+                SecondWattsAvg = (decimal)data.SecondPower,
+                SecondTime = data.SecondTestTime,
+                SecondStatus = data.SecondStatus.Status.ToString()
+            })
+            .ToList();
+    }
+
+    /// <summary>
+    /// Returns CSS class for highlighting the current test row across all test tables.
+    /// Works with any test data type that has a TestNumber property.
+    /// </summary>
+    private string? GetCurrentTestRowClass(dynamic item)
+    {
+        if (TestManager.CurrentUnit != null && item.TestNumber == TestManager.CurrentUnit.CurrentTest)
+        {
+            return "bg-accent-base";
+        }
+        return null;
+    }
+
+    public void Dispose()
+    {
+        TestManager.OnUnitDataChanged -= HandleUnitDataChanged;
+    }
+}

@@ -1,0 +1,52 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme) source("..");
+@import "tailwindcss/utilities.css" layer(utilities) source("..");
+
+/* FluentUI Color Tokens for Tailwind */
+@theme {
+  /* Neutral Layers (Backgrounds) */
+  --color-neutral-layer-1: var(--neutral-layer-1);
+  --color-neutral-layer-2: var(--neutral-layer-2);
+  --color-neutral-layer-3: var(--neutral-layer-3);
+  --color-neutral-layer-4: var(--neutral-layer-4);
+  --color-neutral-layer-card: var(--neutral-layer-card-container);
+  --color-neutral-layer-floating: var(--neutral-layer-floating);
+
+  /* Neutral Fills */
+  --color-neutral-fill-rest: var(--neutral-fill-rest);
+  --color-neutral-fill-hover: var(--neutral-fill-hover);
+  --color-neutral-fill-active: var(--neutral-fill-active);
+  --color-neutral-fill-stealth-rest: var(--neutral-fill-stealth-rest);
+  --color-neutral-fill-stealth-hover: var(--neutral-fill-stealth-hover);
+  --color-neutral-fill-strong-rest: var(--neutral-fill-strong-rest);
+  --color-neutral-fill-secondary-rest: var(--neutral-fill-secondary-rest);
+
+  /* Neutral Strokes (Borders) */
+  --color-neutral-stroke-rest: var(--neutral-stroke-rest);
+  --color-neutral-stroke-hover: var(--neutral-stroke-hover);
+  --color-neutral-stroke-active: var(--neutral-stroke-active);
+  --color-neutral-stroke-divider-rest: var(--neutral-stroke-divider-rest);
+  --color-neutral-stroke-strong-rest: var(--neutral-stroke-strong-rest);
+
+  /* Neutral Foregrounds (Text) */
+  --color-neutral-foreground-rest: var(--neutral-foreground-rest);
+  --color-neutral-foreground-hover: var(--neutral-foreground-hover);
+  --color-neutral-foreground-active: var(--neutral-foreground-active);
+  --color-neutral-foreground-hint: var(--neutral-foreground-hint);
+
+  /* Accent Colors */
+    --color-accent-base: var(--accent-base-color);
+  --color-accent-fill-rest: var(--accent-fill-rest);
+  --color-accent-fill-hover: var(--accent-fill-hover);
+  --color-accent-fill-active: var(--accent-fill-active);
+  --color-accent-foreground-rest: var(--accent-foreground-rest);
+  --color-accent-foreground-hover: var(--accent-foreground-hover);
+
+  /* Focus */
+  --color-focus-stroke-outer: var(--focus-stroke-outer);
+  --color-focus-stroke-inner: var(--focus-stroke-inner);
+}
+
+.outline {
+  outline: revert;
+ }

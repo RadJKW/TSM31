@@ -1,0 +1,168 @@
+@inject DielectricTestManager TestManager
+@using Microsoft.FluentUI.AspNetCore.Components.Icons.Regular
+@implements IDisposable
+
+<div class="flex flex-col p-4 gap-3 overflow-auto">
+    <FluentLabel Typo="Typography.Subject" Class="font-semibold">@(IsFirstInduced ? "First" : "Second") Induced Test
+                                                                                                        Data</FluentLabel>
+
+    <!-- Test Parameters -->
+    <div class="flex flex-col border border-neutral-stroke-rest rounded p-3 bg-neutral-layer-2">
+        <FluentLabel Typo="Typography.Body" Class="font-semibold mb-2">Test Parameters</FluentLabel>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <FluentNumberField Label="Test Number" Value="1" Class="w-full" />
+            <FluentTextField Label="Set Condition" Class="w-full" />
+            <FluentTextField Label="V Range" Class="w-full" />
+            <FluentTextField Label="C Range" Class="w-full" />
+            <FluentTextField Label="Watt Limit" Class="w-full" />
+        </div>
+    </div>
+
+    <!-- Set Condition Timer -->
+    <div class="flex flex-col border border-neutral-stroke-rest rounded p-4 bg-neutral-layer-1 items-center">
+        <FluentLabel Typo="Typography.Body" Class="font-semibold">Set Condition Timer</FluentLabel>
+        <FluentLabel Typo="Typography.PageTitle" Class="text-[96px] text-accent-fill-rest my-4">18
+        </FluentLabel>
+        <FluentLabel Typo="Typography.Subject">Seconds</FluentLabel>
+    </div>
+
+    <!-- Meter Data - 3 Channels -->
+    <div class="flex flex-col border border-neutral-stroke-rest rounded p-3 bg-neutral-layer-2">
+        <FluentLabel Typo="Typography.Body" Class="font-semibold mb-3">Meter Data</FluentLabel>
+        <div class="flex flex-row gap-4 justify-around">
+            @for (int i = 1; i <= 3; i++)
+            {
+                var channel = i;
+                <div class="flex flex-col border border-neutral-stroke-rest p-3 rounded bg-neutral-layer-1 min-w-[250px]">
+                    <FluentLabel Typo="Typography.Subject" Class="text-center mb-2">Channel @channel
+                    </FluentLabel>
+                    <FluentLabel Typo="Typography.PageTitle"
+                        Class="text-[32px] text-center">000.000 <span class="text-base">V</span></FluentLabel>
+                    <FluentLabel Typo="Typography.PageTitle"
+                        Class="text-[32px] text-center">000.000 <span class="text-base">A</span></FluentLabel>
+                    <FluentLabel Typo="Typography.PageTitle"
+                        Class="text-[32px] text-center">000.000 <span class="text-base">W</span></FluentLabel>
+                </div>
+            }
+        </div>
+
+        <!-- Average Row -->
+        <div class="flex flex-row justify-center mt-3 gap-4">
+            <FluentLabel Typo="Typography.Subject">Average: <span class="text-accent-fill-rest">000.000
+                    V</span></FluentLabel>
+            <FluentLabel Typo="Typography.Subject">Average: <span class="text-accent-fill-rest">000.000
+                    A</span></FluentLabel>
+            <FluentLabel Typo="Typography.Subject">Total: <span class="text-accent-fill-rest">000.000 W</span>
+            </FluentLabel>
+        </div>
+
+        <!-- Generator Control -->
+        <div class="flex flex-row justify-center mt-4 gap-4">
+            <div class="flex flex-col items-center">
+                <FluentLabel Typo="Typography.Body">Coarse</FluentLabel>
+                <FluentButton IconStart="@(new Size24.ArrowUp())"
+                    Appearance="Appearance.Accent"
+                    Class="w-[100px] h-[50px]">Raise</FluentButton>
+                <FluentButton IconStart="@(new Size24.ArrowDown())"
+                    Appearance="Appearance.Neutral"
+                    Class="w-[100px] h-[50px]">Lower</FluentButton>
+            </div>
+            <div class="flex flex-col items-center">
+                <FluentLabel Typo="Typography.Body">Fine</FluentLabel>
+                <FluentButton IconStart="@(new Size24.ArrowUp())"
+                    Appearance="Appearance.Accent"
+                    Class="w-[100px] h-[50px]">Page Up</FluentButton>
+                <FluentButton IconStart="@(new Size24.ArrowDown())"
+                    Appearance="Appearance.Neutral"
+                    Class="w-[100px] h-[50px]">Page Down</FluentButton>
+            </div>
+            <div class="flex flex-col">
+                <FluentCheckbox Label="Zero" />
+                <FluentCheckbox Label="FS" />
+            </div>
+        </div>
+
+        <FluentLabel Typo="Typography.Body" Class="text-center mt-2">Output to generator (0 - 10 V):
+            0</FluentLabel>
+    </div>
+
+    <!-- Recorded Data -->
+    <div class="flex flex-col border border-neutral-stroke-rest rounded p-3 bg-neutral-layer-1">
+        <FluentLabel Typo="Typography.Body" Class="font-semibold mb-2">Recorded Data</FluentLabel>
+        <FluentDataGrid Items="@GetInducedTests()" Class="h-[150px]" TGridItem="InducedTestData">
+            <PropertyColumn Property="@(t => t.TestNumber)" Title="Test" />
+            <PropertyColumn Property="@(t => t.FirstVoltsAvg)" Title="1st Volts (avg)" Format="0.00" />
+            <PropertyColumn Property="@(t => t.FirstAmpsAvg)" Title="1st Amps (avg)" Format="0.000" />
+            <PropertyColumn Property="@(t => t.FirstWattsAvg)" Title="1st Watts (avg)" Format="0.00" />
+            <PropertyColumn Property="@(t => t.FirstTime)" Title="1st Time" />
+            <PropertyColumn Property="@(t => t.FirstStatus)" Title="1st Status" />
+            <PropertyColumn Property="@(t => t.SecondVoltsAvg)" Title="2nd Volts (avg)" Format="0.00" />
+            <PropertyColumn Property="@(t => t.SecondAmpsAvg)" Title="2nd Amps (avg)" Format="0.000" />
+            <PropertyColumn Property="@(t => t.SecondWattsAvg)" Title="2nd Watts (total)" Format="0.00" />
+            <PropertyColumn Property="@(t => t.SecondTime)" Title="2nd Time" />
+            <PropertyColumn Property="@(t => t.SecondStatus)" Title="2nd Status" />
+        </FluentDataGrid>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool IsFirstInduced { get; set; }
+
+    protected override void OnInitialized()
+    {
+        TestManager.OnUnitDataChanged += HandleUnitDataChanged;
+    }
+
+    private void HandleUnitDataChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private IQueryable<InducedTestData> GetInducedTests()
+    {
+        var inducedData = TestManager.GetInducedTestData();
+        if (inducedData == null || !inducedData.Any())
+        {
+            // Return empty placeholder if no data
+            return new List<InducedTestData>
+            {
+                new InducedTestData
+                {
+                    TestNumber = 1,
+                    FirstVoltsAvg = 0.00m,
+                    FirstAmpsAvg = 0.000m,
+                    FirstWattsAvg = 0.00m,
+                    FirstTime = 0,
+                    FirstStatus = "Not Required",
+                    SecondVoltsAvg = 0.00m,
+                    SecondAmpsAvg = 0.000m,
+                    SecondWattsAvg = 0.00m,
+                    SecondTime = 0,
+                    SecondStatus = "Not Required"
+                }
+            }.AsQueryable();
+        }
+
+        // Convert InducedData (from TestData.Models) to InducedTestData (UI model)
+        return inducedData.Select((data, index) => new InducedTestData
+        {
+            TestNumber = index + 1,
+            FirstVoltsAvg = 0.00m, // TODO: Map from actual meter readings when available
+            FirstAmpsAvg = 0.000m,
+            FirstWattsAvg = 0.00m,
+            FirstTime = data.FirstTimeRequired,
+            FirstStatus = data.FirstStatus.Status.ToString(),
+            SecondVoltsAvg = 0.00m,
+            SecondAmpsAvg = 0.000m,
+            SecondWattsAvg = 0.00m,
+            SecondTime = data.SecondTimeRequired,
+            SecondStatus = data.SecondStatus.Status.ToString()
+        }).AsQueryable();
+    }
+
+    public void Dispose()
+    {
+        TestManager.OnUnitDataChanged -= HandleUnitDataChanged;
+    }
+
+}

@@ -1,0 +1,195 @@
+@inherits LayoutComponentBase
+@inject ITestManager TestManager
+@inject StartupService StartupOrchestrator
+@inject SessionManager SessionHandler
+@implements IDisposable
+
+<FluentDesignTheme Mode="DesignThemeModes.Dark" OfficeColor="OfficeColor.Default"/>
+<FluentDialogProvider/>
+<FluentTooltipProvider/>
+
+<div class="test-station-layout-wrapper">
+    <div class="test-station-layout flex flex-col w-full h-screen p-2 border border-neutral-500">
+
+        <div class="main-content flex flex-row flex-1 overflow-y-hidden">
+            <div class="menu-left-wrapper flex flex-col flex-shrink-0 bg-neutral-layer-1 border-r border-neutral-stroke-divider-rest">
+                <div class="keyboard-nav-menu flex-1 overflow-y-auto">
+                    <KeyNavMenu/>
+                </div>
+            </div>
+
+            <div class="body-wrapper px-2 mb-2 flex flex-col flex-1 gap-2 min-h-0">
+                <div class="unit-data-bar-wrapper flex-shrink-0 bg-neutral-layer-2 p-2">
+                    <UnitDataBar/>
+                </div>
+
+                <div class="dynamic-content-wrapper flex-1 overflow-auto bg-neutral-layer-2 p-2 rounded border border-neutral-stroke-rest justify-center min-h-0">
+                    @Body
+                </div>
+                <div class="messages-console-wrapper flex-shrink-0">
+                    <MessagesConsole/>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer - Status Bar -->
+        <StatusBar/>
+    </div>
+</div>
+
+<!-- Dialogs -->
+<InitDialog @ref="_splashDialog"/>
+<OperatorIdDialog @ref="_operatorLoginDialog"/>
+<SessionRestoreDialog @ref="_operatorRestoreDialog" OnChoice="HandleOperatorRestoreChoice"/>
+
+@code {
+    private InitDialog? _splashDialog;
+    private OperatorIdDialog? _operatorLoginDialog;
+    private SessionRestoreDialog? _operatorRestoreDialog;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        Console.WriteLine("[MainLayout] Initializing layout...");
+
+        // Subscribe to events before initialization to ensure UI updates correctly
+        SubscribeToEvents();
+
+        // Execute complete startup sequence via orchestration service
+        var startupResult = await StartupOrchestrator.ExecuteStartupSequenceAsync();
+
+        // Display appropriate dialog based on startup result
+        ShowInitialDialog(startupResult);
+
+        // Setup splash screen callback for post-splash operator handling
+        ConfigureSplashDialogCallback();
+    }
+
+    /// <summary>
+    /// Subscribes to all necessary events for state management.
+    /// </summary>
+    private void SubscribeToEvents()
+    {
+        TestManager.OnOperatorChanged += OnOperatorChanged;
+        TestManager.OnUnitDataChanged += HandleUnitDataChanged;
+        TestManager.OnShowOperatorDialog += () => _operatorLoginDialog?.Show();
+    }
+
+    /// <summary>
+    /// Displays the appropriate initial dialog based on startup orchestration results.
+    /// </summary>
+    private void ShowInitialDialog(StartupResult result)
+    {
+        Console.WriteLine("[MainLayout] Displaying initial dialog based on startup result...");
+        switch (result.Dialog)
+        {
+            case DialogToShow.Splash:
+                _splashDialog?.Show();
+                break;
+
+            case DialogToShow.OperatorRestore:
+                _operatorRestoreDialog?.Show(result.SavedSession!);
+                break;
+
+            case DialogToShow.OperatorLogin:
+                _operatorLoginDialog?.Show();
+                break;
+
+            case DialogToShow.None:
+                // No dialog needed - operator already logged in
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Configures the splash screen callback to handle operator session after splash closes.
+    /// </summary>
+    private void ConfigureSplashDialogCallback()
+    {
+        if (_splashDialog == null) return;
+
+        _splashDialog.OnSplashClosed += HandleSplashClosed;
+    }
+
+    private void HandleSplashClosed()
+    {
+        _ = InvokeAsync(async () => {
+            if (TestManager.IsOperatorLoggedIn) return;
+
+            var savedSession = await SessionHandler.GetSavedSessionAsync();
+
+            if (savedSession?.ToEmployee() != null)
+            {
+                _operatorRestoreDialog?.Show(savedSession);
+            }
+            else
+            {
+                Console.WriteLine("[MainLayout] Showing operator login dialog after splash.");
+                _operatorLoginDialog?.Show();
+            }
+        });
+    }
+
+    /// <summary>
+    /// Handles the user's choice from the operator restore dialog.
+    /// </summary>
+    /// <param name="restore">True = restore session, False = start fresh</param>
+    private async Task HandleOperatorRestoreChoice(bool restore)
+    {
+        if (restore)
+        {
+            await RestoreOperatorSessionAsync();
+        }
+        else
+        {
+            await StartFreshOperatorSessionAsync();
+        }
+    }
+
+    /// <summary>
+    /// Restores a previous operator session from saved state.
+    /// </summary>
+    private async Task RestoreOperatorSessionAsync()
+    {
+        var savedSession = await SessionHandler.GetSavedSessionAsync();
+
+        if (savedSession?.ToEmployee() == null)
+        {
+            _operatorLoginDialog?.Show();
+            return;
+        }
+
+        var success = await SessionHandler.RestoreSessionAsync(savedSession);
+
+        if (!success)
+        {
+            _operatorLoginDialog?.Show();
+        }
+
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Starts a fresh operator session (clears saved operator, prompts for login).
+    /// </summary>
+    private async Task StartFreshOperatorSessionAsync()
+    {
+        await SessionHandler.StartFreshSessionAsync();
+        _operatorLoginDialog?.Show();
+    }
+
+    private void OnOperatorChanged() => StateHasChanged();
+
+    private void HandleUnitDataChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        TestManager.OnOperatorChanged -= OnOperatorChanged;
+        TestManager.OnUnitDataChanged -= HandleUnitDataChanged;
+        if (_splashDialog != null)
+        {
+            _splashDialog.OnSplashClosed -= HandleSplashClosed;
+        }
+    }
+}

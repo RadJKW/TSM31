@@ -1,0 +1,796 @@
+@inject DielectricTestManager TestManager
+@inject MessageConsoleService MessageConsole
+@inject IJSRuntime JsRuntime
+@implements IDisposable
+@implements IAsyncDisposable
+
+
+<!--suppress CssInvalidHtmlTagReference -->
+<style>
+    fluent-select::part(selected-value){
+        text-align: center !important
+    }
+    fluent-text-field::part(control){
+        text-align: center !important
+    }
+    fluent-number-field::part(control){
+        text-align: center !important
+    }
+    fluent-number-field::part(controls){
+        display: none !important
+    }
+    /* Serial number error styling */
+    fluent-text-field.serial-error::part(control) {
+        border-color: #f87171 !important;
+        border-width: 2px !important;
+    }
+
+    fluent-text-field.serial-error::part(root) {
+        --accent-fill-rest: #f87171;
+    }
+</style>
+
+<div class="mx-auto flex flex-col gap-2 w-full max-w-[1000px]">
+    <!-- Main Layout: Unit Info on Left, Configuration and Requirements Stacked on Right -->
+    <div class="flex gap-2">
+        <!-- Unit Info Card - Left Side -->
+        <div class="flex-shrink-0 w-1/5 border border-neutral-stroke-rest rounded bg-neutral-layer-1 p-2 flex flex-col gap-2">
+            <div class="flex flex-col gap-1">
+                <FluentLabel
+                    Class="text-xs font-semibold uppercase tracking-wide text-neutral-foreground-1 text-center">
+                    Unit
+                    Info
+                </FluentLabel>
+                <FluentDivider/>
+            </div>
+            <div class="grid grid-cols-1 gap-2">
+                @* if i double click this field, set the SerialNumber to the 2231003725 *@
+                <FluentTextField Id="serial-number-input" @ref="_serialNumberInputRef" InputMode="InputMode.Numeric"
+                                 Maxlength="10" Pattern="[0-9]*" Immediate="true" Label="Serial Number" AutoComplete="off"
+                                 @ondblclick="@(() => SerialNumber = string.IsNullOrEmpty(SerialNumber) ? _defaultSerialNumber : null)"
+                                 @bind-Value="SerialNumber" Class="@($"w-full {(_hasSerialError ? "serial-error" : "")}")" AutoFocus="true"/>
+
+                @if (!_hasSerialError)
+                {
+                    <FluentTooltip Anchor="serial-number-input" Position="TooltipPosition.Top" Delay="500">
+                        @($"DblClick => {_defaultSerialNumber}")
+                    </FluentTooltip>
+                }
+                else
+                {
+                    <FluentTooltip Anchor="serial-number-input" Position="TooltipPosition.Left" Delay="0"
+                                   Visible="true" Style="--tooltip-background: #dc2626; --tooltip-color: white; --tooltip-border: 2px solid #991b1b;">
+                        <div class="flex items-center gap-2">
+                            <span style="font-size: 1.2em;">⚠️</span>
+                            <div>
+                                <div class="font-semibold">@_serialErrorMessage</div>
+                                @if (!string.IsNullOrEmpty(_serialNumber))
+                                {
+                                    <div class="text-sm opacity-90">Current: @(_serialNumber.Length)/10 digits</div>
+                                }
+                            </div>
+                        </div>
+                    </FluentTooltip>
+                }
+                <FluentTextField Label="Catalog Number" Value="@_transformerData.CatalogNumber" Class="w-full"
+                                 ReadOnly="@(TestManager.CurrentUnit == null)"/>
+                <FluentNumberField Label="Check Number" Value="@_transformerData.CheckNumber" Class="w-full"
+                                   ReadOnly="@(TestManager.CurrentUnit == null)"/>
+                <FluentNumberField Label="KVA" Value="@_transformerData.Kva" Class="w-full"
+                                   ReadOnly="@(TestManager.CurrentUnit == null)"/>
+                <FluentSelect Label="Unit Type" Items="@_unitTypes" @bind-SelectedOption="@_transformerData.UnitType"
+                  Class="w-full"/>
+
+                @*add a test # or total # field here *@
+                <FluentNumberField Label="Test Number" Value="@TestManager.CurrentUnit?.CurrentTest" Class="w-full"
+                                   ReadOnly="@(TestManager.CurrentUnit == null)"/>
+            </div>
+        </div>
+
+        <!-- Right Side: Configuration and Requirements Stacked -->
+        <div class="flex-grow flex flex-col gap-2">
+            <!-- Transformer Configuration Card -->
+            <div class="border border-neutral-stroke-rest rounded bg-neutral-layer-1 p-2 flex flex-col gap-2">
+                <div class="flex flex-col gap-1">
+                    <FluentLabel
+                        Class="text-xs font-semibold uppercase tracking-wide text-neutral-foreground-1 text-center">
+                        Transformer Configuration
+                    </FluentLabel>
+
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    @foreach (var row in _voltageRows)
+                    {
+                        if (row.IsArrestor)
+                        {
+                            continue;
+                        }
+
+                        <div class="border border-neutral-stroke-rest rounded px-2 py-2 flex flex-col gap-2">
+                            <div class="text-sm font-bold w-full text-center">@row.Label</div>
+                            <div class="grid grid-cols-[60px_auto] gap-2">
+                                <FluentNumberField @bind-Value="row.Voltage" Label="Voltage" Class="w-full"/>
+                            </div>
+
+                            <div class="grid grid-cols-[60px_auto] gap-2">
+                                <FluentSelect Items="@_ratingOptions" @bind-SelectedOption="@row.Ratings" Label="Rating"
+                                              Class="w-full"/>
+                            </div>
+                            <div class="grid grid-cols-[60px_auto] gap-2">
+                                <FluentSelect Items="@_bushingOptions" @bind-SelectedOption="@row.Bushings" Label="Bushings"
+                                              Class="w-full"/>
+                            </div>
+                            <div class="grid grid-cols-[60px_auto] gap-2">
+                                <FluentSelect Items="@row.BILOptions" @bind-SelectedOption="@row.BIL" Label="BIL"
+                                              Class="w-full"/>
+                            </div>
+                            <div class="grid grid-cols-[60px_auto] gap-2">
+                                <FluentSelect Items="@_coilOptions" Label="Coil" Class="w-full"/>
+                            </div>
+                        </div>
+                    }
+                </div>
+                @* Arrestor configuration *@
+                <div class="border border-neutral-stroke-rest rounded px-2 py-1 flex items-center justify-between">
+                    <FluentLabel Typo="Typography.H5">Arrestor Included</FluentLabel>
+                    <FluentSwitch @bind-Value="_arrestorRow.ArrestorEnabled"/>
+                </div>
+            </div>
+
+            <!-- Test Requirements Card -->
+            <div class="border border-neutral-stroke-rest rounded bg-neutral-layer-1 p-2 flex flex-col gap-2">
+                <div class="card header flex flex-col gap-1">
+                    <FluentLabel
+                        Class="text-xs font-semibold uppercase tracking-wide text-neutral-foreground-1 text-center">
+                        Test Requirements
+                    </FluentLabel>
+                </div>
+                <div class="card-content grid grid-cols-3 gap-2">
+                    <!-- Induced Column -->
+                    <div class="border border-neutral-stroke-rest rounded p-2 pt-1 flex flex-col gap-2">
+                        <div class="grid grid-rows-2 gap-0">
+                            <FluentSelect Label="First Induced" Items="@_impulseOptions"
+                                          @bind-SelectedOption="@_transformerData.FirstInduced" Class="w-full"/>
+                        </div>
+                        <div class="grid grid-rows-2 gap-0">
+                            <FluentSelect Label="Second Induced" Items="@_impulseOptions"
+                                          @bind-SelectedOption="@_transformerData.SecondInduced" Class="w-full"/>
+                        </div>
+                    </div>
+
+                    <!-- Impulse Column -->
+                    <div class="border border-neutral-stroke-rest rounded p-2 pt-1 flex flex-col gap-1">
+                        <div class="grid grid-rows-2 gap-0">
+
+                            <FluentSelect Label="H1 Impulse" Items="@_impulseOptions"
+                                          @bind-SelectedOption="@_transformerData.H1Impulse" Class="w-full mb-0! [&>control:text-center!]"/>
+                        </div>
+
+                        <div class="grid grid-rows-2 gap-0">
+                            <FluentSelect Label="H2 Impulse" Items="@_impulseOptions"
+                                          @bind-SelectedOption="@_transformerData.H2Impulse" Class="w-full"/>
+                        </div>
+                        <div class="grid grid-rows-2 gap-0">
+                            <FluentSelect Label="H3 Impulse" Items="@_impulseOptions"
+                                          @bind-SelectedOption="@_transformerData.H3Impulse" Class="w-full"/>
+                        </div>
+                    </div>
+
+
+                    <!-- Hipot Column -->
+                    <div class="border border-neutral-stroke-rest rounded p-2 pt-1 flex flex-col gap-1">
+
+                        <div class="grid grid-rows-2 gap-0">
+                            <FluentSelect Label="Primary Hipot" Items="@_impulseOptions"
+                                          @bind-SelectedOption="@_transformerData.PrimaryHipot" Class="w-full"/>
+                        </div>
+                        <div class="grid grid-rows-2 gap-0">
+                            <FluentSelect Label="Secondary Hipot" Items="@_impulseOptions"
+                                          @bind-SelectedOption="@_transformerData.SecondaryHipot" Class="w-full"/>
+                        </div>
+                        <div class="grid grid-rows-2 gap-0">
+                            <FluentSelect Label="Four LVB Hipot" Items="@_impulseOptions"
+                                          @bind-SelectedOption="@_transformerData.FourLvbHipot" Class="w-full"/>
+                        </div>
+
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Download progress overlay *@
+@if (_isOverlayVisible)
+{
+    <div class="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+        <div
+            class="flex flex-col items-center gap-3 bg-neutral-layer-1 border border-neutral-stroke-rest rounded p-6 shadow-xl">
+            <FluentProgressRing Width="56px"/>
+            <FluentLabel Typo="Typography.Body">@_overlayMessage</FluentLabel>
+        </div>
+    </div>
+}
+
+<ConfirmationDialog @ref="_confirmationDialog"
+                    OnConfirmed="HandleConfirmationConfirmed" OnCancelled="HandleConfirmationCancelled"/>
+
+@code {
+
+    private FluentTextField? _serialNumberInputRef;
+    private string _defaultSerialNumber = "2829723724";
+
+    /*Possible that the download is wrong or unable to be downloaded. User needs ability to change unit data from the fields
+    */
+    private TransformerData _transformerData = new();
+    private string? _serialNumber;
+    private bool _suppressSerialEvents;
+    private IJSObjectReference? _jsModule;
+    private bool _isOverlayVisible;
+    private string _overlayMessage = "Downloading unit data...";
+    private CancellationTokenSource? _downloadCts;
+    private DateTime _overlayStartedUtc;
+    private bool _hasSerialError;
+    private string _serialErrorMessage = string.Empty;
+
+    // Confirmation dialog state
+    private ConfirmationDialog? _confirmationDialog;
+    private Func<Task>? _pendingConfirmationAction;
+    private Action? _pendingCancellationAction;
+    // private List<SerialNumberSuggestion> _cachedSuggestions = [];
+
+    private readonly List<string> _unitTypes = ["Side By Side", "Single Phase", "Three Phase"];
+    private readonly List<int> _ratingOptions = [1, 2, 3, 4];
+    private readonly List<int> _bushingOptions = [1, 2, 3, 4];
+    private readonly List<string> _coilOptions = ["Option 1", "Option 2"];
+    private readonly List<string> _impulseOptions = ["Not Required", "Required"];
+
+    // Grid data for Primary/Secondary/Arrestor
+    private IQueryable<VoltageRow> _voltageRows = null!;
+    private readonly VoltageRow _primaryRow = new() { Label = "Primary", IsArrestor = false };
+    private readonly VoltageRow _secondaryRow = new() { Label = "Secondary", IsArrestor = false };
+    private readonly VoltageRow _arrestorRow = new() { Label = "Arrestor", IsArrestor = true };
+
+    // Property with change detection - JS handles input filtering
+    private string? SerialNumber
+    {
+        get => _serialNumber;
+        set {
+            if (_serialNumber == value) return;
+            _serialNumber = value;
+            if (_suppressSerialEvents) return;
+            OnSerialNumberChanged();
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        TestManager.OnUnitDataChanged += HandleUnitDataChanged;
+        // Note: Clear and focus handling is now done locally by commands
+        TestManager.OnDownloadStarted += HandleDownloadStarted;
+        TestManager.OnDownloadCompleted += HandleDownloadCompleted;
+
+        // Initialize grid rows with cached BIL options (loaded at app startup)
+        _voltageRows = new List<VoltageRow> { _primaryRow, _secondaryRow, _arrestorRow }.AsQueryable();
+        _primaryRow.BILOptions = TestManager.GetPrimaryBILOptions();
+        _secondaryRow.BILOptions = TestManager.GetSecondaryBILOptions();
+
+        // Register command handlers for function keys
+        TestManager.DataEntryF1Handler = HandleF1Pressed;
+        TestManager.DataEntryF9Handler = HandleF9Pressed;
+
+        // Debug log (will show in host console)
+        Console.WriteLine("DataEntryTab: F1 and F9 handlers registered");
+
+        SyncFromTestManager();
+    }
+
+    private void HandleClearFields()
+    {
+        SetSerialNumberSilently(string.Empty);
+        _transformerData = new TransformerData();
+
+        // Sync pending serial state with TestManager so function keys update correctly
+        TestManager.UpdatePendingSerial(null);
+
+        // Reset grid rows
+        _primaryRow.Voltage = 0;
+        _primaryRow.Ratings = 0;
+        _primaryRow.Bushings = 0;
+        _primaryRow.BIL = string.Empty;
+        _secondaryRow.Voltage = 0;
+        _secondaryRow.Ratings = 0;
+        _secondaryRow.Bushings = 0;
+        _secondaryRow.BIL = string.Empty;
+        _arrestorRow.ArrestorEnabled = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                // Load initial suggestions from telemetry (requires JS interop for localStorage)
+                // _cachedSuggestions = await TestManager.GetSerialNumberSuggestionsAsync(20);
+
+                // Initialize numeric input filtering
+                _jsModule = await JsRuntime.InvokeAsync<IJSObjectReference>("import", "./_content/TSM31.Core/js/numericInput.js");
+                await _jsModule.InvokeVoidAsync("initializeNumericInput", "serial-number-input");
+
+                StateHasChanged();// Trigger re-render after loading suggestions
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($@"Failed to initialize component: {ex.Message}");
+            }
+        }
+    }
+
+    private void OnSerialNumberChanged()
+    {
+        // Clear error state when user types
+        _hasSerialError = false;
+
+        TestManager.UpdatePendingSerial(_serialNumber);
+        if (!string.IsNullOrEmpty(_serialNumber) && (!TestManager.ValidateSerialNumber(_serialNumber)))
+        {
+            MessageConsole.AddWarning("Serial must be numeric and at least 3 digits.", "DataEntry");
+        }
+        else if (TestManager.ValidateSerialNumber(_serialNumber))
+        {
+            MessageConsole.AddInfo("Ready (F1 = Download, F9 = Clear).", "DataEntry");
+        }
+    }
+
+    private void HandleUnitDataChanged()
+    {
+        PopulateFromCurrentUnit();
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Converts UnitData TransformerType enum to UI display string
+    /// </summary>
+    private string ConvertUnitTypeToString(TransformerType unitType)
+    {
+        return unitType switch {
+            TransformerType.SinglePhase => "Single Phase",
+            TransformerType.ThreePhaseDy => "Three Phase",
+            TransformerType.ThreePhaseYd => "Three Phase",
+            TransformerType.ThreePhaseDd => "Three Phase",
+            TransformerType.ThreePhaseYy => "Three Phase",
+            _ => "Single Phase"
+        };
+    }
+
+    /// <summary>
+    /// Formats BIL integer value to 3-digit string format (e.g., 95 -> "095")
+    /// </summary>
+    private static string FormatBIL(int bil)
+    {
+        return bil.ToString("000");
+    }
+
+    /// <summary>
+    /// Converts TestStatus to UI-friendly string for dropdown selection
+    /// </summary>
+    private static string ConvertTestStatus(TestStatus? status)
+    {
+        if (status == null)
+            return "Not Required";
+
+        return status.Status switch {
+            TestStatusType.NotRequired => "Not Required",
+            TestStatusType.Required => "Required",
+            TestStatusType.Passed => "Required",// Treat as required since test was performed
+            TestStatusType.Failed => "Required",// Treat as required since test was performed
+            TestStatusType.Aborted => "Required",// Treat as required since test needs retry
+            _ => "Not Required"
+        };
+    }
+
+    private void HandleDownloadStarted()
+    {
+        // Cancel any previous timing routine
+        _downloadCts?.Cancel();
+        _downloadCts?.Dispose();
+        _downloadCts = new CancellationTokenSource();
+
+        _overlayMessage = "Downloading unit data...";
+        _overlayStartedUtc = DateTime.UtcNow;
+        _isOverlayVisible = true;
+        InvokeAsync(StateHasChanged);
+
+        // Kick off timing logic: min 2s display; timeout at 10s with error
+        _ = RunOverlayTimingAsync(_downloadCts.Token);
+    }
+
+    private async Task RunOverlayTimingAsync(CancellationToken token)
+    {
+        try
+        {
+            var startedAt = DateTime.UtcNow;
+            // Minimum visible duration: 2 seconds
+            var minDelay = Task.Delay(TimeSpan.FromSeconds(2), token);
+            await minDelay;
+
+            // After 2s, keep waiting until completion or up to remaining time to reach 10s total
+            var elapsed = DateTime.UtcNow - startedAt;
+            var remaining = TimeSpan.FromSeconds(10) - elapsed;
+            if (remaining > TimeSpan.Zero)
+            {
+                var timeout = Task.Delay(remaining, token);
+                await timeout;
+            }
+
+            // If we reach here without cancellation, treat as timeout
+            if (!token.IsCancellationRequested)
+            {
+                _overlayMessage = "Download is taking longer than expected...";
+                await InvokeAsync(StateHasChanged);
+                // Give brief moment for message to show, then show error and hide
+                await Task.Delay(500, token);
+                MessageConsole.AddError("Download timed out. Please check connectivity and try again.", "DataEntry");
+                _isOverlayVisible = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            // Expected when download completes
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Overlay timing error: {ex.Message}");
+        }
+    }
+
+    private void HandleDownloadCompleted(bool success)
+    {
+        // Signal timing to stop; we still respect the 2s minimum because the timing task
+        // was started at OnDownloadStarted and will be cancelled here only after at least 2s
+        _downloadCts?.Cancel();
+        _downloadCts?.Dispose();
+        _downloadCts = null;
+
+        // Enforce minimum visible time of 2 seconds from when overlay was shown
+        var elapsed = DateTime.UtcNow - _overlayStartedUtc;
+        var remaining = TimeSpan.FromSeconds(2) - elapsed;
+
+        if (remaining > TimeSpan.Zero)
+        {
+            _ = Task.Run(async () => {
+                try
+                {
+                    await Task.Delay(remaining);
+                    _isOverlayVisible = false;
+                    await InvokeAsync(StateHasChanged);
+                }
+                catch
+                {
+                    // ignored
+                }
+            });
+        }
+        else
+        {
+            _isOverlayVisible = false;
+            InvokeAsync(StateHasChanged);
+        }
+    }
+    private async Task HandleConfirmationConfirmed()
+    {
+        if (_pendingConfirmationAction != null)
+        {
+            await _pendingConfirmationAction.Invoke();
+        }
+
+        _pendingConfirmationAction = null;
+        _pendingCancellationAction = null;
+    }
+
+    private Task HandleConfirmationCancelled()
+    {
+        _pendingCancellationAction?.Invoke();
+        _pendingConfirmationAction = null;
+        _pendingCancellationAction = null;
+        return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_jsModule is not null)
+            {
+                await _jsModule.DisposeAsync();
+                _jsModule = null;
+            }
+        }
+        catch
+        {
+            // swallow disposal errors; component is tearing down
+        }
+
+        Dispose(disposing: true);
+    }
+
+    private bool _disposed;
+
+    private void Dispose(bool disposing)
+    {
+        if (!disposing || _disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        // Unregister command handlers
+        if (TestManager.DataEntryF1Handler == HandleF1Pressed)
+            TestManager.DataEntryF1Handler = null;
+        if (TestManager.DataEntryF9Handler == HandleF9Pressed)
+            TestManager.DataEntryF9Handler = null;
+
+        // Unsubscribe from events
+        TestManager.OnUnitDataChanged -= HandleUnitDataChanged;
+        // Note: Clear and confirmation handling is now done locally
+        TestManager.OnDownloadStarted -= HandleDownloadStarted;
+        TestManager.OnDownloadCompleted -= HandleDownloadCompleted;
+
+        _downloadCts?.Cancel();
+        _downloadCts?.Dispose();
+    }
+
+    /// <summary>
+    /// Represents a row in the Primary/Secondary/Arrestor grid
+    /// </summary>
+    private class VoltageRow
+    {
+        public string Label { get; init; } = string.Empty;
+        public int Voltage { get; set; }
+        public int Ratings { get; set; }
+        public int Bushings { get; set; }
+        public string BIL { get; set; } = string.Empty;
+        public IEnumerable<string> BILOptions { get; set; } = [];
+        public bool ArrestorEnabled { get; set; }
+        public bool IsArrestor { get; init; }
+    }
+
+    private void SyncFromTestManager()
+    {
+        if (TestManager.CurrentUnit != null)
+        {
+            PopulateFromCurrentUnit();
+        }
+    }
+
+    private void PopulateFromCurrentUnit()
+    {
+        var unit = TestManager.CurrentUnit;
+        if (unit == null)
+        {
+            return;
+        }
+
+        SetSerialNumberSilently(unit.SerialNumber);
+
+        // Basic unit information
+        _transformerData.SerialNumber = unit.SerialNumber;
+        _transformerData.CatalogNumber = unit.CatalogNumber;
+        _transformerData.CheckNumber = unit.CheckNumber;
+        _transformerData.Kva = (decimal)unit.Kva;
+        _transformerData.UnitType = ConvertUnitTypeToString(unit.UnitType);
+        _transformerData.WorkOrder = unit.WorkOrder;
+        _transformerData.Customer = unit.CustomerName;
+        _transformerData.Arrestor = unit.HasArrestor;
+        _transformerData.PrimaryBushings = unit.PrimaryBushings;
+        _transformerData.PrimaryRatings = unit.PrimaryRatings;
+        _transformerData.SecondaryBushings = unit.SecondaryBushings;
+        _transformerData.SecondaryRatings = unit.SecondaryRatings;
+
+        // Get the current test index (1-based to 0-based)
+        var testIndex = unit.CurrentTest - 1;
+
+        // Populate voltage and BIL data from Ratings collection into grid rows
+        if (unit.Ratings.Count > testIndex && testIndex >= 0)
+        {
+            var ratings = unit.Ratings[testIndex];
+
+            _primaryRow.Voltage = (int)ratings.PrimaryVoltage;
+            _primaryRow.Ratings = unit.PrimaryRatings;
+            _primaryRow.Bushings = unit.PrimaryBushings;
+            _primaryRow.BIL = FormatBIL(ratings.PrimaryBIL);
+
+            _secondaryRow.Voltage = (int)ratings.SecondaryVoltage;
+            _secondaryRow.Ratings = unit.SecondaryRatings;
+            _secondaryRow.Bushings = unit.SecondaryBushings;
+            _secondaryRow.BIL = FormatBIL(ratings.SecondaryBIL);
+
+            _arrestorRow.ArrestorEnabled = unit.HasArrestor;
+        }
+
+        // Populate impulse test requirements from Impulse collection
+        if (unit.Impulse.Count > testIndex && testIndex >= 0)
+        {
+            var impulse = unit.Impulse[testIndex];
+            _transformerData.H1Impulse = ConvertTestStatus(impulse.H1Status);
+            _transformerData.H2Impulse = ConvertTestStatus(impulse.H2Status);
+            _transformerData.H3Impulse = ConvertTestStatus(impulse.H3Status);
+            _transformerData.X1Impulse = ConvertTestStatus(impulse.X1Status);
+            _transformerData.X2Impulse = ConvertTestStatus(impulse.X2Status);
+        }
+
+        // Populate hipot test requirements from Hipot collection
+        if (unit.Hipot.Count > testIndex && testIndex >= 0)
+        {
+            var hipot = unit.Hipot[testIndex];
+            _transformerData.PrimaryHipot = ConvertTestStatus(hipot.PrimaryStatus);
+            _transformerData.SecondaryHipot = ConvertTestStatus(hipot.SecondaryStatus);
+            _transformerData.FourLvbHipot = ConvertTestStatus(hipot.FourLvbStatus);
+        }
+
+        // Populate induced test requirements from Induced collection
+        if (unit.Induced.Count > testIndex && testIndex >= 0)
+        {
+            var induced = unit.Induced[testIndex];
+            _transformerData.FirstInduced = ConvertTestStatus(induced.FirstStatus);
+            _transformerData.SecondInduced = ConvertTestStatus(induced.SecondStatus);
+        }
+    }
+
+    private void SetSerialNumberSilently(string? value)
+    {
+        _suppressSerialEvents = true;
+        _serialNumber = value;
+        _suppressSerialEvents = false;
+    }
+
+    /// <summary>
+    /// F1 key handler: Download unit data
+    /// - First F1: Focus serial input (if not focused)
+    /// - Second F1: Validate and download (if input already focused)
+    /// - If unit already downloaded: show confirmation dialog only when input has focus
+    /// </summary>
+    private async void HandleF1Pressed()
+    {
+        // Check if serial input has focus using JS interop
+        bool hasFocus = false;
+        try
+        {
+            hasFocus = await JsRuntime.InvokeAsync<bool>("eval", "document.activeElement?.id === 'serial-number-input'");
+        }
+        catch
+        {
+            // If JS check fails, assume no focus
+        }
+
+        // If input doesn't have focus, just focus it (don't download)
+        if (!hasFocus)
+        {
+            _serialNumberInputRef?.FocusAsync();
+            MessageConsole.AddInfo("Serial number input focused. Press F1 again to download.", "DataEntry");
+            return;
+        }
+
+        // Input has focus, proceed with validation and download
+        if (string.IsNullOrWhiteSpace(_serialNumber))
+        {
+            // No serial entered, show error
+            _hasSerialError = true;
+            _serialErrorMessage = "Please enter a serial number";
+            MessageConsole.AddWarning("Please enter a serial number.", "DataEntry");
+            StateHasChanged();
+            return;
+        }
+
+        // Check if serial is exactly 10 digits
+        if (_serialNumber.Length != 10)
+        {
+            // Invalid length - show visual error
+            _hasSerialError = true;
+            _serialErrorMessage = "Serial number must be exactly 10 digits";
+            MessageConsole.AddWarning($"Serial number must be exactly 10 digits. Current: {_serialNumber.Length}/10", "DataEntry");
+            StateHasChanged();
+            return;
+        }
+
+        // Validate serial number is numeric
+        if (!TestManager.ValidateSerialNumber(_serialNumber))
+        {
+            // Invalid serial (non-numeric), show error
+            _hasSerialError = true;
+            _serialErrorMessage = "Serial number must be numeric only";
+            MessageConsole.AddWarning("Serial must be numeric only.", "DataEntry");
+            StateHasChanged();
+            return;
+        }
+
+        // Clear any previous error state
+        _hasSerialError = false;
+        _serialErrorMessage = string.Empty;
+
+        // Check if unit is already downloaded
+        if (TestManager.CurrentUnit != null)
+        {
+            // Show confirmation dialog before overwriting existing data
+            _pendingConfirmationAction = async () => await PerformDownloadAsync();
+            _pendingCancellationAction = () => _serialNumberInputRef?.FocusAsync();
+            _confirmationDialog?.Show("Confirm Download", $"Unit data is already loaded. Download serial {_serialNumber} and replace current data?");
+        }
+        else
+        {
+            // No unit loaded, download directly
+            _ = PerformDownloadAsync();
+        }
+    }
+
+    /// <summary>
+    /// F9 key handler: Clear unit data
+    /// - If unit downloaded: show confirmation dialog
+    /// - If no unit: log message (placeholder)
+    /// </summary>
+    private void HandleF9Pressed()
+    {
+        if (TestManager.CurrentUnit == null)
+        {
+            Console.WriteLine("no unit data downloaded");
+            return;
+        }
+
+        // Show confirmation dialog before clearing
+        _pendingConfirmationAction = async () => {
+            HandleClearFields();
+            TestManager.ClearUnit();
+            _serialNumberInputRef?.FocusAsync();
+            await Task.CompletedTask;
+        };
+        _confirmationDialog?.Show("Confirm Clear", "Are you sure you want to clear all unit data?");
+    }
+
+    /// <summary>
+    /// Performs the actual download operation
+    /// </summary>
+    private async Task PerformDownloadAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_serialNumber))
+        {
+            MessageConsole.AddWarning("Please enter a serial number.", "DataEntry");
+            return;
+        }
+
+        var (isValid, message) = TestManager.ValidateDownload(_serialNumber, null);
+        if (!isValid)
+        {
+            MessageConsole.AddWarning(message, "DataEntry");
+            return;
+        }
+
+        try
+        {
+            MessageConsole.AddInfo($"Downloading unit {_serialNumber}...", "DataEntry");
+            var (success, downloadMessage) = await TestManager.DownloadUnitAsync(_serialNumber);
+
+            if (success)
+            {
+                MessageConsole.AddSuccess("Unit data downloaded successfully.", "DataEntry");
+            }
+            else
+            {
+                MessageConsole.AddError(downloadMessage, "DataEntry");
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageConsole.AddError($"Download failed: {ex.Message}", "DataEntry");
+        }
+    }
+
+}

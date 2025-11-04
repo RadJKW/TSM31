@@ -1,0 +1,59 @@
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".root", ".root", "{26053602-AC43-4146-A0F8-AF5AE680EEEA}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+		.gitignore = .gitignore
+		global.json = global.json
+		docs\ARCHITECTURE.md = docs\ARCHITECTURE.md
+		docs\CHECKLIST.md = docs\CHECKLIST.md
+		docs\DEVELOPER_GUIDE.md = docs\DEVELOPER_GUIDE.md
+		docs\DEVELOPMENT.md = docs\DEVELOPMENT.md
+		docs\IMPLEMENTATION_SUMMARY.md = docs\IMPLEMENTATION_SUMMARY.md
+		docs\INITIALIZATION_STATE.md = docs\INITIALIZATION_STATE.md
+		docs\KEYBOARD_SHORTCUTS.md = docs\KEYBOARD_SHORTCUTS.md
+		docs\FunctionKeyMap.md = docs\FunctionKeyMap.md
+		docs\UnitDownload.md = docs\UnitDownload.md
+		docs\VB_TO_CSHARP_CONVERSION.md = docs\VB_TO_CSHARP_CONVERSION.md
+		CLAUDE.md = CLAUDE.md
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TSM31.Core", "src\TSM31.Core\TSM31.Core.csproj", "{3E5B19C3-11FE-4DDA-98A6-307EB0F6C5D7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TSM31.Web", "src\TSM31.Web\TSM31.Web.csproj", "{02905333-607C-4BB2-AB01-7E280698A43C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TSM31.WinForm", "src\TSM31.WinForm\TSM31.WinForm.csproj", "{9287D48D-2012-4FA8-ADAC-66BD367D1C09}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TSM31.TestData", "src\TSM31.TestData\TSM31.TestData.csproj", "{88FEE2D4-59E0-4372-934B-3016CAE52E00}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".service", ".service", "{B6BBB5EE-DE0F-4883-9633-CD819596A0E9}"
+	ProjectSection(SolutionItems) = preProject
+		docs\services\FunctionKeyRegistry.md = docs\services\FunctionKeyRegistry.md
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3E5B19C3-11FE-4DDA-98A6-307EB0F6C5D7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3E5B19C3-11FE-4DDA-98A6-307EB0F6C5D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3E5B19C3-11FE-4DDA-98A6-307EB0F6C5D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3E5B19C3-11FE-4DDA-98A6-307EB0F6C5D7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{02905333-607C-4BB2-AB01-7E280698A43C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{02905333-607C-4BB2-AB01-7E280698A43C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{02905333-607C-4BB2-AB01-7E280698A43C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{02905333-607C-4BB2-AB01-7E280698A43C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9287D48D-2012-4FA8-ADAC-66BD367D1C09}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9287D48D-2012-4FA8-ADAC-66BD367D1C09}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9287D48D-2012-4FA8-ADAC-66BD367D1C09}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9287D48D-2012-4FA8-ADAC-66BD367D1C09}.Release|Any CPU.Build.0 = Release|Any CPU
+		{88FEE2D4-59E0-4372-934B-3016CAE52E00}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{88FEE2D4-59E0-4372-934B-3016CAE52E00}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{88FEE2D4-59E0-4372-934B-3016CAE52E00}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{88FEE2D4-59E0-4372-934B-3016CAE52E00}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{B6BBB5EE-DE0F-4883-9633-CD819596A0E9} = {26053602-AC43-4146-A0F8-AF5AE680EEEA}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,252 @@
+@inject EmployeeService EmployeeService
+@inject DielectricTestManager TestManager
+@inject MessageConsoleService MessageConsole
+
+<style>
+    .operator-dialog::part(overlay) {
+        background: rgba(0, 0, 0, 0.6);
+    }
+
+</style>
+
+<FluentDialog @bind-Hidden="@_dialogHidden" Modal="true" TrapFocus="true" Class="operator-dialog" Style="min-width: 500px;" @onkeydown="@HandleKeyDown">
+    <div class="flex flex-col gap-4 p-6">
+        <!-- Header -->
+        <div class="flex flex-col items-center gap-2">
+            <FluentLabel Typo="Typography.PageTitle" Style="color: var(--accent-fill-rest);">
+                @if (IsOperatorLoggedIn)
+                {
+                    <span>Operator Menu</span>
+                }
+                else
+                {
+                    <span>Operator Login</span>
+                }
+            </FluentLabel>
+            @if (IsOperatorLoggedIn)
+            {
+                <FluentLabel Typo="Typography.Body">
+                    @EmployeeService.Operator?.Name
+                </FluentLabel>
+            }
+            else
+            {
+                <FluentLabel Typo="Typography.Body">
+                    Enter your 5-digit Operator ID
+                </FluentLabel>
+            }
+        </div>
+
+        <!-- Logged In View -->
+        @if (IsOperatorLoggedIn)
+        {
+            <div class="flex flex-col gap-4">
+
+                <!-- Action Buttons -->
+                <FluentStack Orientation="Orientation.Horizontal" Style="gap: 12px; width: 100%;">
+                    <FluentButton Appearance="Appearance.Accent"
+                                  @onclick="@HandleLogout"
+                                  Autofocus="true"
+                                  Style="flex: 1;">
+                        Logout
+                    </FluentButton>
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  @onclick="@CloseDialog"
+                                  Style="flex: 1;">
+                        Cancel
+                    </FluentButton>
+                </FluentStack>
+
+                <!-- Footer Note -->
+                <FluentLabel Typo="Typography.Body" Alignment="HorizontalAlignment.Center">
+                    Press ESC to cancel or Enter to logout
+                </FluentLabel>
+            </div>
+        }
+        else
+        {
+            <!-- Login View -->
+            <div class="flex flex-col gap-3">
+                <FluentStack Orientation="Orientation.Horizontal" Style="align-items: center; gap: 12px;">
+                    <FluentLabel Typo="Typography.Body" Style="min-width: 100px; font-weight: 600;">Operator ID:</FluentLabel>
+                    <FluentTextField @ref="_operatorIdInput"
+                                     @bind-Value="@_operatorId"
+                                     @oninput="@(HandleValueInput)"
+                                     Placeholder="00000"
+                                     MaxLength="5"
+                                     Style="flex: 1; font-size: 18px; letter-spacing: 4px;"
+                                     Immediate="true"
+                                     Disabled="@_isLoading"/>
+                </FluentStack>
+
+                <!-- Error Message -->
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <FluentMessageBar Intent="MessageIntent.Error" Class="w-full">
+                        @_errorMessage
+                    </FluentMessageBar>
+                }
+
+                <!-- Loading State -->
+                @if (_isLoading)
+                {
+                    <div class="flex items-center justify-center gap-3 py-2">
+                        <FluentProgressRing Width="24px" Height="24px"/>
+                        <FluentLabel Typo="Typography.Body">Looking up employee...</FluentLabel>
+                    </div>
+                }
+            </div>
+
+            <!-- Success Message -->
+            @if (!string.IsNullOrEmpty(_successMessage))
+            {
+                <FluentMessageBar Intent="MessageIntent.Success" Class="w-full">
+                    @_successMessage
+                </FluentMessageBar>
+            }
+
+            <!-- Footer Note -->
+            <FluentLabel Typo="Typography.Body" Alignment="HorizontalAlignment.Center">
+                Dialog will close automatically after successful login
+            </FluentLabel>
+        }
+    </div>
+</FluentDialog>
+
+@code {
+    private FluentTextField? _operatorIdInput;
+    private bool _dialogHidden = true;
+    private string _operatorId = string.Empty;
+    private string _errorMessage = string.Empty;
+    private string _successMessage = string.Empty;
+    private bool _isLoading;
+
+    private bool IsOperatorLoggedIn => EmployeeService.Operator != null;
+
+    public void Show()
+    {
+        _operatorId = string.Empty;
+        _errorMessage = string.Empty;
+        _successMessage = string.Empty;
+        _isLoading = false;
+        _dialogHidden = false;
+        MessageConsole.AddInfo("Operator login dialog opened", "OperatorDialog");
+        StateHasChanged();
+
+        // Focus input after dialog is shown (only if not logged in)
+        _ = Task.Run(async () => {
+            await Task.Delay(100);
+            await InvokeAsync(() => {
+                if (!IsOperatorLoggedIn && _operatorIdInput != null)
+                {
+                    _operatorIdInput.FocusAsync();
+                }
+            });
+        });
+    }
+
+    private void CloseDialog()
+    {
+        _dialogHidden = true;
+        MessageConsole.AddInfo("Dialog closed", "OperatorDialog");
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            CloseDialog();
+        }
+        else if (e.Key == "Enter" && IsOperatorLoggedIn)
+        {
+            HandleLogout();
+        }
+    }
+
+    private void HandleLogout()
+    {
+        TestManager.LogoutOperator();
+        MessageConsole.AddInfo("Operator logged out", "OperatorDialog");
+        CloseDialog();
+    }
+
+    private async Task HandleValueInput(ChangeEventArgs e)
+    {
+        // Update the value immediately
+        _operatorId = e.Value?.ToString() ?? string.Empty;
+        _errorMessage = string.Empty;
+
+        // Auto-lookup when 5 digits are entered
+        if (_operatorId.Length == 5 && _operatorId.All(char.IsDigit))
+        {
+            MessageConsole.AddDebug("5-digit ID entered, auto-triggering lookup", "OperatorDialog");
+            await PerformLookupAsync();
+        }
+    }
+
+    private async Task PerformLookupAsync()
+    {
+        if (_isLoading) return;
+        if (_operatorId.Length != 5 || !_operatorId.All(char.IsDigit))
+        {
+            _errorMessage = "Operator ID must be exactly 5 digits";
+            MessageConsole.AddWarning($"Invalid ID format: {_operatorId}", "OperatorDialog");
+            return;
+        }
+
+        _isLoading = true;
+        _successMessage = string.Empty;
+        _errorMessage = string.Empty;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            // Perform login via EmployeeService - returns (Success, Message)
+            var (success, message) = await EmployeeService.LoginAsync(_operatorId);
+
+            if (success)
+            {
+                _successMessage = message;
+                MessageConsole.AddSuccess($"Operator verified: {EmployeeService.Operator?.Name}", "OperatorDialog");
+
+                // Re-render to show success message
+                _isLoading = false;
+                await InvokeAsync(StateHasChanged);
+
+                // Wait for layout to process the operator change event
+                await Task.Delay(300);
+
+                // Close dialog after showing success message
+                CloseDialog();
+                await InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                _isLoading = false;
+                _errorMessage = message;
+                MessageConsole.AddError($"Operator login failed for ID: {_operatorId} - {message}", "OperatorDialog");
+                _operatorId = string.Empty;
+                await InvokeAsync(StateHasChanged);
+
+                // Refocus input
+                if (_operatorIdInput != null)
+                {
+                    _operatorIdInput.FocusAsync();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _isLoading = false;
+            _errorMessage = $"Lookup failed: {ex.Message}";
+            MessageConsole.AddError($"Operator lookup exception: {ex.Message}", "OperatorDialog");
+            _operatorId = string.Empty;
+            await InvokeAsync(StateHasChanged);
+
+            if (_operatorIdInput != null)
+            {
+                _operatorIdInput.FocusAsync();
+            }
+        }
+    }
+}

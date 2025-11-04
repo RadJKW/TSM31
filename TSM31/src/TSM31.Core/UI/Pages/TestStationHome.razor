@@ -1,0 +1,62 @@
+@page "/"
+@inject DielectricTestManager TestManager
+@implements IDisposable
+
+
+<!-- Tab Header -->
+
+<!-- Content Area based on selected main tab -->
+<div class="flex-1 overflow-auto">
+
+    @* <FluentMessageBarProvider Section="MESSAGES_TOP"/> *@
+  @switch (TestManager.CurrentTestActions)
+  {
+    case TestActions.DataReview:
+      <DataReviewTab />
+      break;
+    case TestActions.DataEntry:
+      <DataEntryTab />
+      break;
+    case TestActions.Hipot:
+      <HipotTab />
+      break;
+    case TestActions.Impulse:
+      <ImpulseTab />
+      break;
+    case TestActions.FirstInduced:
+    case TestActions.SecondInduced:
+      <InducedTab IsFirstInduced="TestManager.CurrentTestActions == TestActions.FirstInduced" />
+      break;
+    case TestActions.Dielectric:
+    case TestActions.CurrentRange:
+    case TestActions.VariacTiming:
+    case TestActions.VoltageRange:
+    case TestActions.SetCondition:
+    case TestActions.IOControl:
+    case TestActions.OperatorIdEntry:
+    case TestActions.FailDielectric:
+    case TestActions.FailPrint:
+    case TestActions.FailSerialCatNumber: break;
+    default:
+      <div class="flex flex-col items-center justify-center h-full">
+                <FluentLabel Typo="Typography.Subject">
+                    @TestManager.CurrentTestActions.ToString() - Coming Soon
+                </FluentLabel>
+            </div>
+      break;
+  }
+</div>
+
+@code {
+
+  protected override void OnInitialized()
+  {
+    TestManager.OnTestActionChanged += () => InvokeAsync(StateHasChanged);
+  }
+
+
+  public void Dispose()
+  {
+  }
+
+}

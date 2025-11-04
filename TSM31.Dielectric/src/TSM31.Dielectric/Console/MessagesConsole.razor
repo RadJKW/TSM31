@@ -1,0 +1,227 @@
+@inject MessageConsoleService MessageConsole
+@inject IJSRuntime JsRuntime
+@implements IDisposable
+@implements IAsyncDisposable
+
+<div class="messages-console flex flex-col w-full h-[200px] bg-black border-t border-neutral-stroke-divider-rest overflow-hidden">
+    <!-- Console Header -->
+    <div class="console-header flex flex-row justify-between items-center px-3 py-1 bg-neutral-layer-2 border-b border-neutral-stroke-divider-rest shrink-0">
+        <FluentLabel Typo="Typography.Body" Class="font-semibold text-gray-400">Console Output</FluentLabel>
+        <div class="flex flex-row gap-2 items-center">
+            <!-- Log Level Filter Dropdown -->
+            <FluentButton Id="filter-button"
+                          Appearance="Appearance.Stealth"
+                          Class="text-xs! px-2! py-1!"
+                          TabIndex="-1"
+                          @onclick="@(() => _filterMenuOpen = !_filterMenuOpen)">
+                Filter (<span style="display:inline-block; min-width:4ch; text-align:center;">@GetFilterCount()</span>) ▼
+            </FluentButton>
+
+            <FluentPopover @bind-Open="_filterMenuOpen"
+                           AnchorId="filter-button"
+                           VerticalPosition="VerticalPosition.Top"
+                           HorizontalPosition="HorizontalPosition.Right">
+                <Body>
+                <div class="flex flex-col p-2 bg-neutral-layer-2 border border-neutral-stroke-rest rounded shadow-lg align-middle">
+
+                    <FluentCheckbox Label="Select All"
+                                    Class="p-1 pt-0"
+                                    ThreeState="true"
+                                    ShowIndeterminate="false"
+                                    @bind-CheckState="AreAllLevelsVisible"/>
+
+                    <FluentDivider Class="my-1"/>
+                    @foreach (var level in _allLevels)
+                    {
+                        var isChecked = _selectedLevels.Contains(level);
+                        <div class="flex p-1">
+                            <FluentCheckbox Label="@GetLevelDisplayName(level)"
+                                            @bind-Value:get="isChecked"
+                                            @bind-Value:set="c => OnLevelVisibilityChanged(level, c)"/>
+                        </div>
+                    }
+                </div>
+                </Body>
+            </FluentPopover>
+
+            <FluentButton Appearance="Appearance.Stealth"
+                          Class="text-xs! px-2! py-1!"
+                          TabIndex="-1"
+                          OnClick="@(() => MessageConsole.Clear())">
+                Clear
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Stealth"
+                          Class="text-xs! px-2! py-1!"
+                          TabIndex="-1"
+                          OnClick="@(() => _autoScroll = !_autoScroll)">
+                @(_autoScroll ? "Auto" : "Manual")
+            </FluentButton>
+        </div>
+    </div>
+
+    <!-- Console Messages -->
+    <div @ref="_messagesContainer" class="console-messages flex-1 overflow-y-auto font-mono text-xs bg-black px-2 py-1 space-y-0" tabindex="-1">
+        @foreach (var msg in GetFilteredMessages())
+        {
+            <div class="console-line @msg.GetCssClass() whitespace-pre-wrap wrap-break-word">@msg.FormattedMessage</div>
+        }
+    </div>
+</div>
+
+@code {
+    private bool _autoScroll = true;
+    private Action? _messagesChangedHandler;
+    private ElementReference _messagesContainer;
+    private IJSObjectReference? _jsModule;
+    private bool _disposed;
+
+    // Log level filtering
+    private readonly IEnumerable<MessageLevel> _allLevels = Enum.GetValues<MessageLevel>();
+    private readonly HashSet<MessageLevel> _selectedLevels = [..Enum.GetValues<MessageLevel>()];
+    private bool _filterMenuOpen;
+
+    protected override void OnInitialized()
+    {
+        _messagesChangedHandler = HandleMessagesChanged;
+        MessageConsole.OnMessagesChanged += _messagesChangedHandler;
+    }
+
+    private void OnLevelVisibilityChanged(MessageLevel level, bool isVisible)
+    {
+        if (isVisible)
+        {
+            _selectedLevels.Add(level);
+        }
+        else
+        {
+            _selectedLevels.Remove(level);
+        }
+    }
+
+    private bool? AreAllLevelsVisible
+    {
+        get =>
+            _selectedLevels.Count == _allLevels.Count()
+                ? true
+                : _selectedLevels.Count == 0
+                    ? false
+                    : null;
+        set
+        {
+            if (value is true or null)
+            {
+                _selectedLevels.UnionWith(_allLevels);
+                return;
+            }
+
+            _selectedLevels.Clear();
+        }
+    }
+
+    private string GetFilterCount()
+    {
+        var count = _selectedLevels.Count;
+        var total = _allLevels.Count();
+        return count == total ? "All" : $"{count}/{total}";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                _jsModule = await JsRuntime.InvokeAsync<IJSObjectReference>("import", "./_content/TSM31.Dielectric/js/consoleScroll.js");
+            }
+            catch (Exception ex)
+            {
+                await Console.Error.WriteLineAsync($"Failed to load console scroll module: {ex.Message}");
+            }
+        }
+    }
+
+    private void HandleMessagesChanged()
+    {
+        if (_disposed) return;
+
+        _ = InvokeAsync(async () =>
+        {
+            if (_disposed) return;
+            StateHasChanged();
+
+            if (_autoScroll)
+            {
+                await ScrollToBottom();
+            }
+        });
+    }
+
+    private IEnumerable<ConsoleMessage> GetFilteredMessages()
+    {
+        if (!_selectedLevels.Any())
+        {
+            return [];
+        }
+
+        return MessageConsole.Messages.Where(msg => _selectedLevels.Contains(msg.Level));
+    }
+
+    private string GetLevelDisplayName(MessageLevel level) => level switch
+    {
+        MessageLevel.Info => "INFO",
+        MessageLevel.Warning => "WARN",
+        MessageLevel.Error => "ERROR",
+        MessageLevel.Success => "OK",
+        MessageLevel.Debug => "DBG",
+        MessageLevel.Trace => "TRC",
+        MessageLevel.Instruction => "INSTR",
+        MessageLevel.Event => "EVENT",
+        _ => level.ToString()
+    };
+
+    private async Task ScrollToBottom()
+    {
+        try
+        {
+            if (_jsModule != null)
+            {
+                await Task.Delay(50); // Small delay to ensure rendering is complete
+                await _jsModule.InvokeVoidAsync("scrollToBottom", _messagesContainer);
+            }
+        }
+        catch (Exception ex)
+        {
+            await Console.Error.WriteLineAsync($"Error scrolling console: {ex.Message}");
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+
+        if (_messagesChangedHandler != null)
+        {
+            MessageConsole.OnMessagesChanged -= _messagesChangedHandler;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+
+        if (_jsModule is not null)
+        {
+            try
+            {
+                await _jsModule.DisposeAsync();
+            }
+            catch
+            {
+                // Swallow disposal errors
+            }
+        }
+
+        Dispose();
+    }
+
+}

@@ -1,0 +1,126 @@
+@inject DielectricTestManager TestManager
+@using Microsoft.FluentUI.AspNetCore.Components.Icons.Regular
+@implements IDialogContentComponent<UnitData>
+
+<FluentDialogHeader ShowDismiss="true">
+    <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center">
+        <FluentIcon Value="@(new Size24.CloudArrowDown())" />
+        <FluentLabel Typo="Typography.PaneHeader">Download Unit Data</FluentLabel>
+    </FluentStack>
+</FluentDialogHeader>
+
+<FluentDialogBody>
+    <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px; min-width: 400px;">
+        <FluentTextField @bind-Value="@Content.SerialNumber"
+            Label="Serial Number:"
+            Style="width: 100%;"
+            AutoFocus="true"/>
+
+        <FluentTextField @bind-Value="@Content.CatalogNumber" Label="Catalog Number:" Style="width: 100%;"/>
+
+        <FluentNumberField @bind-Value="@Content.CheckNumber" Label="Check Number:" Style="width: 100%;"/>
+
+        @if (!string.IsNullOrEmpty(StatusMessage))
+        {
+            <FluentMessageBar Intent="@GetMessageBarIntent()" Style="width: 100%;">
+                @StatusMessage
+            </FluentMessageBar>
+        }
+    </FluentStack>
+</FluentDialogBody>
+
+<FluentDialogFooter>
+    <FluentButton Appearance="Appearance.Accent" OnClick="@DownloadAsync" Disabled="@IsDownloading">
+        @(IsDownloading ? "Downloading..." : "Download")
+    </FluentButton>
+    <FluentButton Appearance="Appearance.Neutral" OnClick="@Clear">
+        Clear
+    </FluentButton>
+    <FluentButton Appearance="Appearance.Neutral" OnClick="@CancelDialog">
+        Cancel
+    </FluentButton>
+</FluentDialogFooter>
+
+@code {
+    private bool IsDownloading { get; set; }
+    private string StatusMessage { get; set; } = string.Empty;
+    private string StatusClass { get; set; } = string.Empty;
+
+    [CascadingParameter] public FluentDialog? Dialog { get; set; }
+
+    [Parameter] public UnitData Content { get; set; } = new();
+
+    private async Task DownloadAsync()
+    {
+        if (IsDownloading) return;
+
+        // Use TestManager validation
+        var (isValid, validationMessage) = TestManager.ValidateDownload(Content.SerialNumber, Content.CatalogNumber);
+        if (!isValid)
+        {
+            StatusMessage = validationMessage;
+            StatusClass = "error";
+            return;
+        }
+
+        IsDownloading = true;
+        StatusMessage = "Downloading unit data...";
+        StatusClass = "info";
+        StateHasChanged();
+
+        try
+        {
+            var catalogNum = string.IsNullOrWhiteSpace(Content.CatalogNumber) ? null : Content.CatalogNumber;
+            var (success, message) = await TestManager.DownloadUnitAsync(Content.SerialNumber.Trim(), catalogNum?.Trim());
+
+            StatusMessage = message;
+            StatusClass = success ? "success" : "error";
+
+            if (success)
+            {
+                await Task.Delay(800); // brief success display
+                await Dialog!.CloseAsync(Content);
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error: {ex.Message}";
+            StatusClass = "error";
+        }
+        finally
+        {
+            IsDownloading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Clear()
+    {
+        TestManager.ClearUnit();
+        Content.SerialNumber = string.Empty;
+        Content.CatalogNumber = string.Empty;
+        Content.CheckNumber = 0;
+        StatusMessage = "Unit data cleared.";
+        StatusClass = "info";
+        StateHasChanged();
+    }
+
+    private async Task CancelDialog()
+    {
+        if (Dialog is not null)
+        {
+            await Dialog.CancelAsync();
+        }
+    }
+
+    private MessageIntent GetMessageBarIntent()
+    {
+        return StatusClass switch
+        {
+            "error" => MessageIntent.Error,
+            "success" => MessageIntent.Success,
+            _ => MessageIntent.Info
+        };
+    }
+
+}

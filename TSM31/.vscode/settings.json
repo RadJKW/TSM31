@@ -1,0 +1,19 @@
+{
+    "files.associations": {
+        "*.css": "tailwindcss"
+    },
+    "css.autoValidation": "Never",
+    "css.styleSheets": [
+        "**/wwwroot/*.css",
+    ],
+    "dotnet.defaultSolution": "TSM31.sln",
+    "sqltools.useNodeRuntime": true,
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "driver": "SQLite",
+            "name": "TSM31 AppState",
+            "database": "C:\\TestStation_TSM31\\Database\\tsm31.db"
+        }
+    ]
+}

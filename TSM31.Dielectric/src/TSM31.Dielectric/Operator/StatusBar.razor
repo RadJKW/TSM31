@@ -1,0 +1,51 @@
+@using System.Reflection
+@inject ITestManager TestManager
+@implements IDisposable
+
+<!-- Footer - Status Bar -->
+<div class="status-bar flex flex-wrap gap-x-6 gap-y-1 px-4 py-1 bg-neutral-layer-2 border-t border-neutral-stroke-divider-rest">
+    <FluentLabel Typo="Typography.H5" Class="whitespace-nowrap">
+        Operator: @(TestManager.CurrentOperator?.Name ?? "Not Logged In")
+    </FluentLabel>
+    <FluentLabel Typo="Typography.H5" Class="whitespace-nowrap ml-auto">
+        @_currentTime.ToString("MMMM dd, yyyy")
+    </FluentLabel>
+    <FluentLabel Typo="Typography.H5" Class="whitespace-nowrap">
+        @_currentTime.ToString("HH:mm:ss")
+    </FluentLabel>
+    <FluentLabel Typo="Typography.H5" Class="whitespace-nowrap">Version @_version</FluentLabel>
+</div>
+
+@code {
+  private DateTime _currentTime = DateTime.Now;
+  private string _version = "1.0.0";
+  private Timer? _timer;
+
+  protected override void OnInitialized()
+  {
+    // Get version from assembly
+    var assembly = Assembly.GetExecutingAssembly();
+    var version = assembly.GetName().Version;
+    _version = version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "1.0.0";
+
+    // Subscribe to operator changes
+    TestManager.OnOperatorChanged += HandleOperatorChanged;
+
+    // Setup timer to update time every second
+    _timer = new Timer(_ => {
+      _currentTime = DateTime.Now;
+      InvokeAsync(StateHasChanged);
+    }, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+  }
+
+  private void HandleOperatorChanged()
+  {
+    InvokeAsync(StateHasChanged);
+  }
+
+  public void Dispose()
+  {
+    TestManager.OnOperatorChanged -= HandleOperatorChanged;
+    _timer?.Dispose();
+  }
+}

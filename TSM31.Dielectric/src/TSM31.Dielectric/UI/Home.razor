@@ -1,0 +1,47 @@
+@page "/"
+@inject ITestManager TestManager
+@implements IDisposable
+
+<!-- Content Area based on selected main tab -->
+<div class="flex-1 overflow-auto">
+    @switch (TestManager.CurrentTestActions)
+    {
+        case TestActions.DataEntry:
+            <DataEntryTab/>
+            break;
+        case TestActions.DataReview:
+            <DataReviewTab/>
+            break;
+        case TestActions.Testing:
+            <TestingTab/>
+            break;
+        case TestActions.Home:
+        default:
+            <div class="flex flex-col items-center justify-center h-full gap-4">
+                <FluentLabel Typo="Typography.PageTitle" Style="color: var(--accent-fill-rest);">
+                    Test Station Template
+                </FluentLabel>
+                <FluentLabel Typo="Typography.Body" Style="opacity: 0.7;">
+                    Press F1 for Data Entry or F2 for Testing
+                </FluentLabel>
+            </div>
+            break;
+    }
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        TestManager.OnTestActionChanged += HandleTestActionChanged;
+    }
+
+    private void HandleTestActionChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        TestManager.OnTestActionChanged -= HandleTestActionChanged;
+    }
+}
