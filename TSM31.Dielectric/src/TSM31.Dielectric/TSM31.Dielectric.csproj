@@ -18,6 +18,7 @@
 
     <!-- Database / Persistence -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.1" />
     <PackageReference Include="RadUtils.SQLServer" Version="1.0.3" />
 
     <!-- Logging -->

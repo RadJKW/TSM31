@@ -1,21 +1,386 @@
+@using TSM31.Dielectric.Testing
+@using TSM31.Dielectric.Console
+@inject TestManager TestManager
+@inject MessageConsoleService MessageConsole
+@implements IDisposable
+
 <div class="flex flex-col h-full gap-4 p-4">
     <div class="flex items-center gap-2">
         <FluentLabel Typo="Typography.PageTitle" Style="color: var(--accent-fill-rest);">
-            Data Entry
+            Data Entry & Download
         </FluentLabel>
     </div>
 
-    <div class="flex-1 flex items-center justify-center">
-        <div class="text-center">
-            <FluentLabel Typo="Typography.H3" Style="opacity: 0.7;">
-                Data Entry Screen
-            </FluentLabel>
-            <FluentLabel Typo="Typography.Body" Style="opacity: 0.5; margin-top: 8px;">
-                This is an example page for entering unit data.
-            </FluentLabel>
-            <FluentLabel Typo="Typography.Body" Style="opacity: 0.5; margin-top: 16px;">
-                Press ESC to return to home page.
-            </FluentLabel>
+    <!-- Download Section -->
+    <div class="flex gap-4">
+        <!-- Serial Number Input -->
+        <div class="flex-1 max-w-md">
+            <FluentCard>
+                <div class="flex flex-col gap-3 p-4">
+                    <FluentLabel Typo="Typography.H4">Download Unit</FluentLabel>
+
+                    <FluentTextField
+                        Label="Serial Number"
+                        @bind-Value="_serialNumber"
+                        Maxlength="10"
+                        Placeholder="Enter 10-digit serial number"
+                        Class="w-full"
+                        AutoFocus="true"/>
+
+                    <div class="flex gap-2">
+                        <FluentButton
+                            Appearance="Appearance.Accent"
+                            OnClick="DownloadUnitAsync"
+                            Disabled="@(_isDownloading || string.IsNullOrWhiteSpace(_serialNumber) || _serialNumber.Length < 3)">
+                            @if (_isDownloading)
+                            {
+                                <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync())" />
+                                <span class="ml-2">Downloading...</span>
+                            }
+                            else
+                            {
+                                <FluentIcon Value="@(new Icons.Regular.Size16.ArrowDownload())" />
+                                <span class="ml-2">Download</span>
+                            }
+                        </FluentButton>
+
+                        <FluentButton
+                            Appearance="Appearance.Neutral"
+                            OnClick="ClearUnit"
+                            Disabled="@(!TestManager.HasUnit)">
+                            Clear
+                        </FluentButton>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(_lastMessage))
+                    {
+                        <FluentLabel Style="@(_lastMessageIsError ? "color: var(--error-color);" : "color: var(--success-color);")">
+                            @_lastMessage
+                        </FluentLabel>
+                    }
+                </div>
+            </FluentCard>
         </div>
+
+        <!-- Unit Info Display -->
+        @if (TestManager.HasUnit && TestManager.TypedCurrentUnit != null)
+        {
+            <div class="flex-1">
+                <FluentCard>
+                    <div class="flex flex-col gap-3 p-4">
+                        <FluentLabel Typo="Typography.H4">Unit Information</FluentLabel>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <FluentLabel Weight="FontWeight.Bold">Serial Number:</FluentLabel>
+                                <FluentLabel>@TestManager.TypedCurrentUnit.SerialNumber</FluentLabel>
+                            </div>
+
+                            <div>
+                                <FluentLabel Weight="FontWeight.Bold">Catalog Number:</FluentLabel>
+                                <FluentLabel>@TestManager.TypedCurrentUnit.CatalogNumber</FluentLabel>
+                            </div>
+
+                            <div>
+                                <FluentLabel Weight="FontWeight.Bold">Work Order:</FluentLabel>
+                                <FluentLabel>@TestManager.TypedCurrentUnit.WorkOrder</FluentLabel>
+                            </div>
+
+                            <div>
+                                <FluentLabel Weight="FontWeight.Bold">KVA:</FluentLabel>
+                                <FluentLabel>@TestManager.TypedCurrentUnit.Kva</FluentLabel>
+                            </div>
+
+                            <div>
+                                <FluentLabel Weight="FontWeight.Bold">Unit Type:</FluentLabel>
+                                <FluentLabel>@TestManager.TypedCurrentUnit.UnitType</FluentLabel>
+                            </div>
+
+                            <div>
+                                <FluentLabel Weight="FontWeight.Bold">Tests:</FluentLabel>
+                                <FluentLabel>@TestManager.TypedCurrentUnit.CurrentTest of @TestManager.TypedCurrentUnit.TotalTests</FluentLabel>
+                            </div>
+
+                            <div>
+                                <FluentLabel Weight="FontWeight.Bold">Primary Bushings:</FluentLabel>
+                                <FluentLabel>@TestManager.TypedCurrentUnit.PrimaryBushings</FluentLabel>
+                            </div>
+
+                            <div>
+                                <FluentLabel Weight="FontWeight.Bold">Secondary Bushings:</FluentLabel>
+                                <FluentLabel>@TestManager.TypedCurrentUnit.SecondaryBushings</FluentLabel>
+                            </div>
+                        </div>
+
+                        @if (TestManager.TypedCurrentUnit.TotalTests > 1)
+                        {
+                            <FluentButton
+                                Appearance="Appearance.Outline"
+                                OnClick="@(() => TestManager.CycleCurrentTest())">
+                                <FluentIcon Value="@(new Icons.Regular.Size16.ArrowNext())" />
+                                <span class="ml-2">Next Test</span>
+                            </FluentButton>
+                        }
+                    </div>
+                </FluentCard>
+            </div>
+        }
     </div>
+
+    <!-- Current Test Details -->
+    @if (TestManager.HasUnit && TestManager.TypedCurrentUnit != null)
+    {
+        var currentRatings = TestManager.GetCurrentRatings();
+        var currentHipot = TestManager.GetCurrentHipotTest();
+        var currentInduced = TestManager.GetCurrentInducedTest();
+        var currentImpulse = TestManager.GetCurrentImpulseTest();
+
+        <div class="grid grid-cols-3 gap-4">
+            <!-- Ratings Card -->
+            @if (currentRatings != null)
+            {
+                <FluentCard>
+                    <div class="flex flex-col gap-2 p-4">
+                        <FluentLabel Typo="Typography.H5">Voltage Ratings</FluentLabel>
+                        <FluentDivider />
+                        <div class="space-y-2">
+                            <div>
+                                <FluentLabel Weight="FontWeight.Bold">Primary:</FluentLabel>
+                                <FluentLabel>@currentRatings.PrimaryVoltage V (@currentRatings.PrimaryCurrent.ToString("F1") A)</FluentLabel>
+                            </div>
+                            <div>
+                                <FluentLabel Weight="FontWeight.Bold">Secondary:</FluentLabel>
+                                <FluentLabel>@currentRatings.SecondaryVoltage V (@currentRatings.SecondaryCurrent.ToString("F1") A)</FluentLabel>
+                            </div>
+                            <div>
+                                <FluentLabel Weight="FontWeight.Bold">Primary BIL:</FluentLabel>
+                                <FluentLabel>@currentRatings.PrimaryBIL kV</FluentLabel>
+                            </div>
+                            <div>
+                                <FluentLabel Weight="FontWeight.Bold">Secondary BIL:</FluentLabel>
+                                <FluentLabel>@currentRatings.SecondaryBIL kV</FluentLabel>
+                            </div>
+                            <div>
+                                <FluentLabel Weight="FontWeight.Bold">Design Ratio:</FluentLabel>
+                                <FluentLabel>@currentRatings.DesignRatio.ToString("F2")</FluentLabel>
+                            </div>
+                        </div>
+                    </div>
+                </FluentCard>
+            }
+
+            <!-- Hipot Tests Card -->
+            @if (currentHipot != null)
+            {
+                <FluentCard>
+                    <div class="flex flex-col gap-2 p-4">
+                        <FluentLabel Typo="Typography.H5">Hipot Tests</FluentLabel>
+                        <FluentDivider />
+                        <div class="space-y-2">
+                            <div>
+                                <FluentLabel Weight="FontWeight.Bold">Primary:</FluentLabel>
+                                <FluentBadge Appearance="@GetBadgeAppearance(currentHipot.PrimaryStatus)">
+                                    @currentHipot.PrimaryStatus.ToString()
+                                </FluentBadge>
+                                @if (currentHipot.PrimaryStatus.Status == TestStatusType.Required)
+                                {
+                                    <FluentLabel> (@currentHipot.PrimaryLimit mA, @currentHipot.PrimaryTimeRequired s)</FluentLabel>
+                                }
+                            </div>
+                            <div>
+                                <FluentLabel Weight="FontWeight.Bold">Secondary:</FluentLabel>
+                                <FluentBadge Appearance="@GetBadgeAppearance(currentHipot.SecondaryStatus)">
+                                    @currentHipot.SecondaryStatus.ToString()
+                                </FluentBadge>
+                                @if (currentHipot.SecondaryStatus.Status == TestStatusType.Required)
+                                {
+                                    <FluentLabel> (@currentHipot.SecondaryLimit mA, @currentHipot.SecondaryTimeRequired s)</FluentLabel>
+                                }
+                            </div>
+                            <div>
+                                <FluentLabel Weight="FontWeight.Bold">4LVB:</FluentLabel>
+                                <FluentBadge Appearance="@GetBadgeAppearance(currentHipot.FourLvbStatus)">
+                                    @currentHipot.FourLvbStatus.ToString()
+                                </FluentBadge>
+                                @if (currentHipot.FourLvbStatus.Status == TestStatusType.Required)
+                                {
+                                    <FluentLabel> (@currentHipot.FourLvbSetCondition kV, @currentHipot.FourLvbTimeRequired s)</FluentLabel>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </FluentCard>
+            }
+
+            <!-- Induced & Impulse Tests Card -->
+            <FluentCard>
+                <div class="flex flex-col gap-2 p-4">
+                    <FluentLabel Typo="Typography.H5">Other Tests</FluentLabel>
+                    <FluentDivider />
+
+                    @if (currentInduced != null)
+                    {
+                        <div class="space-y-2">
+                            <FluentLabel Weight="FontWeight.Bold">Induced Tests:</FluentLabel>
+                            <div class="ml-2">
+                                <div>
+                                    <FluentLabel>First:</FluentLabel>
+                                    <FluentBadge Appearance="@GetBadgeAppearance(currentInduced.FirstStatus)">
+                                        @currentInduced.FirstStatus.ToString()
+                                    </FluentBadge>
+                                </div>
+                                <div>
+                                    <FluentLabel>Second:</FluentLabel>
+                                    <FluentBadge Appearance="@GetBadgeAppearance(currentInduced.SecondStatus)">
+                                        @currentInduced.SecondStatus.ToString()
+                                    </FluentBadge>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    @if (currentImpulse != null)
+                    {
+                        <div class="space-y-2 mt-2">
+                            <FluentLabel Weight="FontWeight.Bold">Impulse Tests:</FluentLabel>
+                            <div class="ml-2 grid grid-cols-2 gap-1">
+                                <div>
+                                    <FluentLabel>H1:</FluentLabel>
+                                    <FluentBadge Appearance="@GetBadgeAppearance(currentImpulse.H1Status)">
+                                        @currentImpulse.H1Status.ToString()
+                                    </FluentBadge>
+                                </div>
+                                <div>
+                                    <FluentLabel>H2:</FluentLabel>
+                                    <FluentBadge Appearance="@GetBadgeAppearance(currentImpulse.H2Status)">
+                                        @currentImpulse.H2Status.ToString()
+                                    </FluentBadge>
+                                </div>
+                                <div>
+                                    <FluentLabel>H3:</FluentLabel>
+                                    <FluentBadge Appearance="@GetBadgeAppearance(currentImpulse.H3Status)">
+                                        @currentImpulse.H3Status.ToString()
+                                    </FluentBadge>
+                                </div>
+                                <div>
+                                    <FluentLabel>X1:</FluentLabel>
+                                    <FluentBadge Appearance="@GetBadgeAppearance(currentImpulse.X1Status)">
+                                        @currentImpulse.X1Status.ToString()
+                                    </FluentBadge>
+                                </div>
+                                <div>
+                                    <FluentLabel>X2:</FluentLabel>
+                                    <FluentBadge Appearance="@GetBadgeAppearance(currentImpulse.X2Status)">
+                                        @currentImpulse.X2Status.ToString()
+                                    </FluentBadge>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </FluentCard>
+        </div>
+    }
+    else if (!TestManager.HasUnit)
+    {
+        <div class="flex-1 flex items-center justify-center">
+            <div class="text-center">
+                <FluentLabel Typo="Typography.H3" Style="opacity: 0.7;">
+                    No Unit Loaded
+                </FluentLabel>
+                <FluentLabel Typo="Typography.Body" Style="opacity: 0.5; margin-top: 8px;">
+                    Enter a serial number above to download unit data.
+                </FluentLabel>
+            </div>
+        </div>
+    }
 </div>
+
+@code {
+    private string? _serialNumber;
+    private bool _isDownloading;
+    private string? _lastMessage;
+    private bool _lastMessageIsError;
+
+    protected override void OnInitialized()
+    {
+        TestManager.OnUnitDataChanged += HandleUnitDataChanged;
+    }
+
+    private void HandleUnitDataChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task DownloadUnitAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_serialNumber) || _serialNumber.Length < 3)
+        {
+            _lastMessage = "Please enter a valid serial number (at least 3 digits)";
+            _lastMessageIsError = true;
+            return;
+        }
+
+        _isDownloading = true;
+        _lastMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            MessageConsole.AddInfo($"Downloading unit {_serialNumber}...", "DataEntry");
+
+            var unit = await TestManager.DownloadUnitAsync(_serialNumber);
+
+            if (unit != null)
+            {
+                _lastMessage = $"Successfully downloaded unit with {unit.TotalTests} test(s)";
+                _lastMessageIsError = false;
+                MessageConsole.AddInfo(_lastMessage, "DataEntry");
+            }
+            else
+            {
+                _lastMessage = "Unit not found or download failed";
+                _lastMessageIsError = true;
+                MessageConsole.AddError(_lastMessage, "DataEntry");
+            }
+        }
+        catch (Exception ex)
+        {
+            _lastMessage = $"Error: {ex.Message}";
+            _lastMessageIsError = true;
+            MessageConsole.AddError(_lastMessage, "DataEntry");
+        }
+        finally
+        {
+            _isDownloading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ClearUnit()
+    {
+        TestManager.ClearUnit();
+        _serialNumber = null;
+        _lastMessage = "Unit data cleared";
+        _lastMessageIsError = false;
+        MessageConsole.AddInfo("Unit data cleared", "DataEntry");
+    }
+
+    private Appearance GetBadgeAppearance(TestStatus status)
+    {
+        return status.Status switch
+        {
+            TestStatusType.NotRequired => Appearance.Neutral,
+            TestStatusType.Required => Appearance.Accent,
+            TestStatusType.Passed => Appearance.Lightweight,
+            TestStatusType.Failed => Appearance.Accent,
+            TestStatusType.Aborted => Appearance.Neutral,
+            _ => Appearance.Neutral
+        };
+    }
+
+    public void Dispose()
+    {
+        TestManager.OnUnitDataChanged -= HandleUnitDataChanged;
+    }
+}

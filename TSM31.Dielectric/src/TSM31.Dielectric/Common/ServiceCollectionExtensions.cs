@@ -8,6 +8,8 @@ using TSM31.Dielectric.Navigation;
 using TSM31.Dielectric.Operator;
 using TSM31.Dielectric.Configuration;
 using TSM31.Dielectric.DataManagement;
+using TSM31.Dielectric.Database;
+using TSM31.Dielectric.Testing;
 
 namespace TSM31.Dielectric.Common;
 
@@ -58,6 +60,21 @@ public static class ServiceCollectionExtensions
         services.AddScoped<SessionManager>();
         services.AddScoped<IAppStateStorageService, AppStateStorageService>();
 
+        // Dielectric-specific services (SQL Server test data database)
+        services.AddDbContext<TestDataDbContext>(options =>
+        {
+            // Connection string can be overridden via appsettings.json
+            var connectionString = configuration.GetConnectionString("TestData")
+                ?? "Server=RAD-SQL;Database=TestData;Integrated Security=True;Connect Timeout=30;Encrypt=False;TrustServerCertificate=True;";
+            options.UseSqlServer(connectionString);
+        });
+
+        // Register test data repository
+        services.AddScoped<ITestDataRepository<UnitData>, TestDataRepository>();
+
+        // Register test manager (concrete implementation)
+        services.AddScoped<TestManager>();
+        services.AddScoped<ITestManager>(sp => sp.GetRequiredService<TestManager>());
     }
 
     /// <summary>
