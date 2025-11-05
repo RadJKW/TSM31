@@ -1,0 +1,97 @@
+<FluentDialog @bind-Hidden="@_dialogHidden" Modal="true" TrapFocus="true" Style="width: 500px;" @onkeydown="HandleKeyDown">
+    <FluentStack Orientation="Orientation.Vertical" Style="padding: 24px; gap: 16px;">
+        <FluentLabel Typo="Typography.Subject" Style="text-align: center; font-weight: 600;">
+            @Title
+        </FluentLabel>
+
+        <FluentStack Orientation="Orientation.Vertical" Style="gap: 12px; padding: 16px; background: var(--neutral-layer-2); border-radius: 4px;">
+            <FluentLabel Typo="Typography.Body" Style="text-align: center; white-space: pre-line;">
+                @Message
+            </FluentLabel>
+        </FluentStack>
+
+        <FluentStack Orientation="Orientation.Horizontal" Style="justify-content: center; gap: 12px; margin-top: 16px;">
+            <FluentButton Appearance="Appearance.Accent" OnClick="HandleConfirm" Style="min-width: 100px;">
+                Yes (Y)
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Neutral" OnClick="HandleCancel" Style="min-width: 100px;">
+                No (N)
+            </FluentButton>
+        </FluentStack>
+    </FluentStack>
+</FluentDialog>
+
+@code {
+    private bool _dialogHidden = true;
+
+    [Parameter]
+    public string Title { get; set; } = "Confirm Action";
+
+    [Parameter]
+    public string Message { get; set; } = "Are you sure you want to proceed?";
+
+    [Parameter]
+    public EventCallback OnConfirmed { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancelled { get; set; }
+
+    /// <summary>
+    /// Shows the dialog. Call StateHasChanged on parent first to ensure parameters are updated.
+    /// </summary>
+    public void Show()
+    {
+        _dialogHidden = false;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Shows the dialog with explicit title and message to avoid timing issues.
+    /// </summary>
+    public void Show(string title, string message)
+    {
+        Title = title;
+        Message = message;
+        _dialogHidden = false;
+        StateHasChanged();
+    }
+
+    public void Hide()
+    {
+        _dialogHidden = true;
+        StateHasChanged();
+    }
+
+    private async Task HandleConfirm()
+    {
+        _dialogHidden = true;
+        await OnConfirmed.InvokeAsync();
+        StateHasChanged();
+    }
+
+    private async Task HandleCancel()
+    {
+        _dialogHidden = true;
+        await OnCancelled.InvokeAsync();
+        StateHasChanged();
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (_dialogHidden) return;
+
+        var key = e.Key.ToUpperInvariant();
+
+        switch (key)
+        {
+            case "Y":
+                await HandleConfirm();
+                break;
+            case "N":
+            case "ESCAPE":
+            case "ESC":
+                await HandleCancel();
+                break;
+        }
+    }
+}
