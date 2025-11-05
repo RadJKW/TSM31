@@ -72,6 +72,16 @@ public class TestManager : ITestManager, IDisposable
     public bool HasUnit => _currentUnit != null && _currentUnit.IsDownloaded;
 
     public event Action? OnUnitDataChanged;
+    public event Action? OnDownloadStarted;
+    public event Action<bool>? OnDownloadCompleted;
+    public event Action? OnPendingSerialChanged;
+
+    // Context-specific command handlers (set by active components)
+    public Action? DataEntryF1Handler { get; set; }
+    public Action? DataEntryF9Handler { get; set; }
+
+    // Pending serial number for menu state
+    internal string? PendingSerialNumber { get; private set; }
 
     /// <summary>
     /// Downloads unit data from the SQL Server TestData database by serial number.
@@ -80,6 +90,9 @@ public class TestManager : ITestManager, IDisposable
     /// <returns>Downloaded UnitData, or null if not found</returns>
     public async Task<UnitData?> DownloadUnitAsync(string identifier)
     {
+        // Notify UI that download is starting
+        OnDownloadStarted?.Invoke();
+
         try
         {
             _logger.LogInformation("Downloading unit data for serial number: {SerialNumber}", identifier);
@@ -89,6 +102,7 @@ public class TestManager : ITestManager, IDisposable
             if (unit == null)
             {
                 _logger.LogWarning("Unit {SerialNumber} not found or could not be downloaded", identifier);
+                OnDownloadCompleted?.Invoke(false);
                 return null;
             }
 
@@ -98,11 +112,13 @@ public class TestManager : ITestManager, IDisposable
             _logger.LogInformation("Successfully downloaded unit {SerialNumber} with {TestCount} test(s)",
                 identifier, unit.TotalTests);
 
+            OnDownloadCompleted?.Invoke(true);
             return unit;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error downloading unit {Identifier}", identifier);
+            OnDownloadCompleted?.Invoke(false);
             return null;
         }
     }
@@ -241,6 +257,63 @@ public class TestManager : ITestManager, IDisposable
         OnUnitDataChanged?.Invoke();
         _logger.LogInformation("Cycled to test {CurrentTest} of {TotalTests}",
             _currentUnit.CurrentTest, _currentUnit.TotalTests);
+    }
+
+    // ========== Validation Methods ==========
+
+    /// <summary>
+    /// Updates the pending serial number (for UI state).
+    /// </summary>
+    public void UpdatePendingSerial(string? serial)
+    {
+        PendingSerialNumber = serial;
+        OnPendingSerialChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Validates a serial number format.
+    /// </summary>
+    public bool ValidateSerialNumber(string? serialNumber)
+    {
+        return !string.IsNullOrWhiteSpace(serialNumber) &&
+               serialNumber.All(char.IsDigit) &&
+               serialNumber.Length >= 3;
+    }
+
+    /// <summary>
+    /// Validates download readiness and returns status message.
+    /// </summary>
+    public (bool IsValid, string Message) ValidateDownload(string? serialNumber, string? catalogNumber)
+    {
+        if (string.IsNullOrWhiteSpace(serialNumber))
+            return (false, "Please enter a serial number.");
+
+        if (!ValidateSerialNumber(serialNumber))
+            return (false, "Serial must be numeric and at least 3 digits.");
+
+        if (_currentUnit != null && string.Equals(_currentUnit.SerialNumber, serialNumber, StringComparison.Ordinal))
+            return (true, "Ready to re-download (will refresh data).");
+
+        if (_currentUnit != null)
+            return (true, "Ready to download (will replace current unit).");
+
+        return (true, "Ready to download.");
+    }
+
+    /// <summary>
+    /// Gets primary BIL options for UI dropdowns (placeholder - would load from database).
+    /// </summary>
+    public IEnumerable<string> GetPrimaryBILOptions()
+    {
+        return new[] { "025", "045", "060", "075", "095", "110", "125", "150", "200", "250" };
+    }
+
+    /// <summary>
+    /// Gets secondary BIL options for UI dropdowns (placeholder - would load from database).
+    /// </summary>
+    public IEnumerable<string> GetSecondaryBILOptions()
+    {
+        return new[] { "010", "020", "030", "045", "060" };
     }
 
     // ========== Initialization ==========
